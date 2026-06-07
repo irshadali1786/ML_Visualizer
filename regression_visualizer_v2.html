@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regression Algorithm — Deep Space Visualizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #030712;
+  --bg-dark: #0F172A;
+  --bg-mid: #111827;
+  --bg-card: rgba(15,23,42,0.7);
+  --blue: #3B82F6;
+  --purple: #8B5CF6;
+  --green: #22C55E;
+  --red: #EF4444;
+  --yellow: #F59E0B;
+  --blue-glow: rgba(59,130,246,0.35);
+  --purple-glow: rgba(139,92,246,0.35);
+  --green-glow: rgba(34,197,94,0.25);
+  --text-primary: #FFFFFF;
+  --text-secondary: #CBD5E1;
+  --text-muted: #64748B;
+  --border: rgba(99,102,241,0.15);
+  --border-hover: rgba(139,92,246,0.4);
+  --indigo-ghost: rgba(99,102,241,0.1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scrollbar-width: thin; scrollbar-color: rgba(99,102,241,0.4) #030712; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #030712; }
+::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.6); }
+::selection { background: rgba(139,92,246,0.3); }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-secondary);
+  font-family: 'Space Grotesk', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.7;
+}
+
+/* Orbs */
+.orb { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; animation: orbFloat 12s infinite ease-in-out; }
+.orb-1 { width:500px;height:500px;top:-100px;left:-100px;background:rgba(59,130,246,0.07);filter:blur(80px); }
+.orb-2 { width:400px;height:400px;top:40%;right:-80px;background:rgba(139,92,246,0.07);filter:blur(80px);animation-delay:-4s; }
+.orb-3 { width:350px;height:350px;bottom:-80px;left:40%;background:rgba(34,197,94,0.05);filter:blur(80px);animation-delay:-8s; }
+
+@keyframes orbFloat {
+  0%,100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-30px) scale(1.05); }
+}
+
+/* Mouse glow */
+#mouseGlow {
+  position: fixed; width:600px;height:600px; border-radius:50%;
+  background: radial-gradient(circle, rgba(139,92,246,0.08), transparent 70%);
+  pointer-events:none; z-index:0; transform:translate(-50%,-50%);
+  transition: opacity 0.3s;
+}
+
+/* Particles canvas */
+#particleCanvas { position:fixed;inset:0;pointer-events:none;z-index:0; }
+
+.app { position:relative;z-index:1;max-width:1140px;margin:0 auto;padding:28px 20px 60px; }
+
+/* Navbar */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(3,7,18,0.6);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(99,102,241,0.1);
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 32px;
+  transition: background 0.3s, border-color 0.3s;
+}
+nav.scrolled { background: rgba(3,7,18,0.9); border-color: rgba(99,102,241,0.25); }
+.nav-logo {
+  font-weight: 700; font-size: 15px; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-logo-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 10px var(--green); animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(1.2)} }
+.nav-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--blue); background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.2); border-radius: 20px;
+  padding: 3px 10px; letter-spacing: 0.08em;
+}
+.nav-spacer { flex: 1; }
+
+/* Header */
+.header { margin-bottom: 28px; }
+.eyebrow {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--blue); background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.2); border-radius: 20px;
+  padding: 5px 12px; letter-spacing: 0.1em; text-transform: uppercase;
+  display: inline-block; margin-bottom: 14px;
+}
+h1 {
+  font-size: clamp(30px,4vw,46px); font-weight: 700;
+  letter-spacing: -2px; line-height: 1.08;
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+.subtitle {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--text-muted); letter-spacing: 0.08em;
+}
+
+/* Type switcher */
+.type-switcher {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 20px;
+}
+.type-btn {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  padding: 8px 16px; border-radius: 10px;
+  border: 1px solid rgba(99,102,241,0.2);
+  cursor: pointer; background: rgba(15,23,42,0.5);
+  color: var(--text-muted); transition: all 0.2s;
+  letter-spacing: 0.06em;
+  backdrop-filter: blur(10px);
+}
+.type-btn:hover { border-color: var(--purple); color: var(--text-primary); background: rgba(139,92,246,0.1); }
+.type-btn.active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(139,92,246,0.2));
+  border-color: rgba(139,92,246,0.5); color: var(--text-primary);
+  box-shadow: 0 0 12px rgba(139,92,246,0.2);
+}
+
+/* Glass card */
+.glass-card {
+  background: rgba(15,23,42,0.6);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 24px;
+  backdrop-filter: blur(20px);
+  transition: all 0.4s cubic-bezier(0.23,1,0.32,1);
+  position: relative; overflow: hidden;
+}
+.glass-card:hover {
+  border-color: rgba(139,92,246,0.4);
+  box-shadow: 0 24px 60px rgba(139,92,246,0.15);
+  transform: translateY(-2px);
+}
+.glass-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139,92,246,0.5), transparent);
+  opacity: 0; transition: opacity 0.4s;
+}
+.glass-card:hover::before { opacity: 1; }
+
+/* Main layout */
+.main-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+/* Canvas panel */
+.canvas-panel { padding: 0; }
+.canvas-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(99,102,241,0.15);
+  flex-wrap: wrap;
+}
+.toolbar-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em;
+}
+.tool-btn {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  padding: 5px 12px; border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--text-muted);
+  transition: all 0.15s;
+}
+.tool-btn:hover { border-color: var(--purple); color: var(--text-primary); background: rgba(139,92,246,0.1); }
+.tool-btn.active { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); color: #93C5FD; }
+.tool-btn.danger:hover { border-color: #EF4444; color: #EF4444; background: rgba(239,68,68,0.1); }
+.spacer { flex: 1; }
+.hint-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--text-muted); background: rgba(99,102,241,0.08);
+  padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.15);
+}
+
+#regressionCanvas {
+  display: block; width: 100%; cursor: crosshair;
+  background: #060d1a;
+}
+
+/* Stats bar */
+.stats-bar {
+  display: flex; border-top: 1px solid rgba(99,102,241,0.15);
+  flex-wrap: wrap;
+}
+.stat-cell {
+  flex: 1; padding: 10px 14px; border-right: 1px solid rgba(99,102,241,0.1);
+  text-align: center; min-width: 80px;
+}
+.stat-cell:last-child { border-right: none; }
+.stat-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px;
+}
+.stat-value {
+  font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  font-weight: 500; color: var(--blue); transition: color 0.3s;
+}
+.stat-value.warn { color: var(--red); }
+.stat-value.ok { color: var(--green); }
+
+/* Side panel */
+.side-panel { display: flex; flex-direction: column; gap: 16px; }
+
+/* Card headers */
+.card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(99,102,241,0.15);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-blue { background: var(--blue); box-shadow: 0 0 6px var(--blue); }
+.dot-purple { background: var(--purple); box-shadow: 0 0 6px var(--purple); }
+.dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+/* Stage nav */
+.stage-list { padding: 8px; display: flex; flex-direction: column; gap: 3px; }
+.stage-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 12px;
+  cursor: pointer; transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.stage-item:hover { background: rgba(99,102,241,0.08); }
+.stage-item.active {
+  background: rgba(59,130,246,0.08);
+  border-color: rgba(59,130,246,0.25);
+}
+.stage-item.completed { opacity: 0.5; }
+.stage-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; flex-shrink: 0;
+  border: 1px solid rgba(99,102,241,0.3); color: var(--text-muted);
+  transition: all 0.2s;
+}
+.stage-item.active .stage-dot {
+  border-color: var(--blue); color: var(--blue);
+  background: rgba(59,130,246,0.15);
+  box-shadow: 0 0 8px rgba(59,130,246,0.3);
+}
+.stage-info { flex: 1; min-width: 0; }
+.stage-name { font-size: 12px; font-weight: 600; letter-spacing: -0.01em; color: var(--text-secondary); }
+.stage-item.active .stage-name { color: #93C5FD; }
+.stage-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+.stage-arrow { font-size: 10px; color: var(--text-muted); }
+.stage-item.active .stage-arrow { color: var(--blue); }
+
+/* Info card */
+.info-body { padding: 16px 18px; }
+.info-desc {
+  font-size: 12px; line-height: 1.7; color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.info-desc strong { color: var(--text-secondary); font-weight: 500; }
+
+.eq-box {
+  margin-top: 12px;
+  background: rgba(3,7,18,0.8);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-left: 2px solid var(--purple);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 14px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: #C4B5FD; line-height: 1.8;
+  white-space: pre;
+  position: relative; overflow: hidden;
+}
+.eq-box::before {
+  content: 'EQ';
+  position: absolute; top: 8px; right: 10px;
+  font-size: 9px; color: rgba(99,102,241,0.4); letter-spacing: 0.1em;
+}
+
+/* Params card */
+.params-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 16px; }
+.param-row { display: flex; flex-direction: column; gap: 7px; }
+.param-label-row { display: flex; justify-content: space-between; align-items: center; }
+.param-name { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.param-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--blue); font-weight: 500; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 3px;
+  background: rgba(99,102,241,0.2);
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--blue); border: 2px solid var(--bg-deep);
+  box-shadow: 0 0 6px rgba(59,130,246,0.5);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+input[type=range]:hover::-webkit-slider-thumb {
+  transform: scale(1.2); box-shadow: 0 0 12px rgba(139,92,246,0.6);
+}
+
+/* Controls row */
+.controls-row {
+  display: flex; gap: 8px; padding: 14px 18px;
+  border-top: 1px solid rgba(99,102,241,0.15);
+}
+.ctrl-btn {
+  flex: 1; padding: 10px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  border: 1px solid rgba(99,102,241,0.2); border-radius: 12px;
+  cursor: pointer; background: transparent; color: var(--text-muted);
+  transition: all 0.15s;
+}
+.ctrl-btn:hover { background: rgba(99,102,241,0.08); color: var(--text-primary); }
+.ctrl-btn.primary {
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  color: #fff; border-color: transparent; font-weight: 500;
+}
+.ctrl-btn.primary:hover {
+  box-shadow: 0 8px 24px rgba(139,92,246,0.45);
+  transform: translateY(-2px);
+}
+
+/* Loss chart */
+.loss-card {}
+#lossCanvas { display: block; width: 100%; }
+.iter-display {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px;
+  border-top: 1px solid rgba(99,102,241,0.15);
+}
+.iter-bar-wrap { flex:1; height:3px; background: rgba(99,102,241,0.1); border-radius:2px; overflow:hidden; }
+.iter-bar { height:100%; background: linear-gradient(90deg, var(--blue), var(--purple)); border-radius:2px; transition: width 0.3s; }
+.iter-label { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-muted); white-space:nowrap; }
+.iter-val { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--blue); }
+.loss-badge { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--yellow); }
+
+/* Type pill */
+.type-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  padding: 3px 10px; border-radius: 20px; border: 1px solid; transition: all 0.2s;
+}
+.type-pill.linear { border-color: rgba(59,130,246,0.4); color: #93C5FD; background: rgba(59,130,246,0.08); }
+.type-pill.poly { border-color: rgba(139,92,246,0.4); color: #C4B5FD; background: rgba(139,92,246,0.08); }
+.type-pill.logistic { border-color: rgba(245,158,11,0.4); color: #FCD34D; background: rgba(245,158,11,0.08); }
+.type-pill.ridge { border-color: rgba(34,197,94,0.4); color: #86EFAC; background: rgba(34,197,94,0.08); }
+.type-pill.lasso { border-color: rgba(239,68,68,0.4); color: #FCA5A5; background: rgba(239,68,68,0.08); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: rgba(15,23,42,0.9); border: 1px solid rgba(139,92,246,0.3);
+  padding: 10px 20px; border-radius: 12px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  z-index: 200; backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(139,92,246,0.2);
+}
+.toast.show { opacity: 1; }
+
+/* Lambda badge for regularization */
+.lambda-indicator {
+  margin-top: 10px; padding: 10px 14px;
+  background: rgba(3,7,18,0.6); border-radius: 10px;
+  border: 1px solid rgba(99,102,241,0.15);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--text-muted); display: flex; gap: 12px; flex-wrap: wrap;
+}
+.lambda-chip {
+  display: flex; gap: 5px; align-items: center;
+}
+.lambda-chip span:first-child { color: var(--green); }
+
+@keyframes fadeSlideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.fade-in { animation: fadeSlideUp 0.25s ease forwards; }
+
+/* Stage progress badge */
+.stage-progress { font-family:'JetBrains Mono',monospace; font-size:10px; color: var(--blue); }
+</style>
+</head>
+<body>
+
+<canvas id="particleCanvas"></canvas>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div id="mouseGlow"></div>
+
+<nav id="navbar">
+  <div class="nav-logo">
+    <div class="nav-logo-dot"></div>
+    RegressionLab
+  </div>
+  <span class="nav-tag">// DEEP SPACE</span>
+  <div class="nav-spacer"></div>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted)">5 algorithms</span>
+</nav>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="eyebrow">Algorithm Visualizer</div>
+    <h1>Regression Deep Dive</h1>
+    <div class="subtitle">// click canvas to add points · drag to move · interactive fitting</div>
+  </div>
+
+  <!-- Type switcher -->
+  <div class="type-switcher" id="typeSwitcher">
+    <button class="type-btn active" data-type="linear">● Linear</button>
+    <button class="type-btn" data-type="poly">◆ Polynomial</button>
+    <button class="type-btn" data-type="logistic">▲ Logistic</button>
+    <button class="type-btn" data-type="ridge">⬡ Ridge (L2)</button>
+    <button class="type-btn" data-type="lasso">⬟ Lasso (L1)</button>
+  </div>
+
+  <div class="main-grid">
+
+    <!-- LEFT -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="glass-card canvas-panel">
+        <div class="canvas-toolbar">
+          <span class="toolbar-label">Scatter Plot</span>
+          <div id="typePill" class="type-pill linear">● Linear Regression</div>
+          <div class="spacer"></div>
+          <button class="tool-btn active" id="btnAdd" onclick="setMode('add')">+ Add</button>
+          <button class="tool-btn" id="btnMove" onclick="setMode('move')">⇧ Move</button>
+          <button class="tool-btn danger" onclick="clearPoints()">✕ Clear</button>
+          <span class="hint-tag" id="hintTag">click to add</span>
+        </div>
+        <canvas id="regressionCanvas" height="360"></canvas>
+        <div class="stats-bar">
+          <div class="stat-cell">
+            <div class="stat-label">Points</div>
+            <div class="stat-value" id="statN">0</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">R²</div>
+            <div class="stat-value" id="statR2">—</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">MSE</div>
+            <div class="stat-value" id="statMSE">—</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Slope / w₁</div>
+            <div class="stat-value" id="statSlope">—</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Intercept / b</div>
+            <div class="stat-value" id="statInt">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loss curve -->
+      <div class="glass-card loss-card">
+        <div class="card-header">
+          <span class="card-title"><div class="card-dot dot-green"></div>Loss Curve</span>
+          <span class="loss-badge" id="lossBadge">● waiting for fit</span>
+        </div>
+        <canvas id="lossCanvas" height="110"></canvas>
+        <div class="iter-display">
+          <span class="iter-label">Iter</span>
+          <div class="iter-bar-wrap"><div class="iter-bar" id="iterBar" style="width:0%"></div></div>
+          <span class="iter-val" id="iterVal">0 / 0</span>
+        </div>
+      </div>
+
+      <!-- Lambda readout (ridge/lasso only) -->
+      <div class="lambda-indicator" id="lambdaDisplay" style="display:none">
+        <div class="lambda-chip"><span id="lambdaType">λ</span><span>regularization strength</span></div>
+        <div class="lambda-chip"><span id="lambdaEffect">—</span><span>sparsity effect</span></div>
+        <div class="lambda-chip"><span id="lambdaW">—</span><span>‖w‖</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="side-panel">
+
+      <!-- Stage nav -->
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title"><div class="card-dot dot-blue"></div>Algorithm Stages</span>
+          <span class="stage-progress" id="stageProgress">1 / 5</span>
+        </div>
+        <div class="stage-list" id="stageList"></div>
+      </div>
+
+      <!-- Info card -->
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title"><div class="card-dot dot-purple"></div><span id="infoTitle">Stage Info</span></span>
+        </div>
+        <div class="info-body">
+          <div class="info-desc" id="infoDesc"></div>
+          <div class="eq-box" id="eqBox" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- Params -->
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title"><div class="card-dot dot-green"></div>Hyperparameters</span>
+        </div>
+        <div class="params-body">
+          <div class="param-row">
+            <div class="param-label-row">
+              <span class="param-name">Learning Rate (η)</span>
+              <span class="param-val" id="lrVal">0.050</span>
+            </div>
+            <input type="range" id="lrSlider" min="1" max="100" value="5" oninput="updateParam('lr',this.value)">
+          </div>
+          <div class="param-row">
+            <div class="param-label-row">
+              <span class="param-name">Iterations</span>
+              <span class="param-val" id="iterValParam">200</span>
+            </div>
+            <input type="range" id="iterSlider" min="10" max="500" value="200" oninput="updateParam('iter',this.value)">
+          </div>
+          <div class="param-row" id="degreeRow" style="display:none">
+            <div class="param-label-row">
+              <span class="param-name">Poly Degree</span>
+              <span class="param-val" id="degreeVal">2</span>
+            </div>
+            <input type="range" id="degreeSlider" min="2" max="8" value="2" oninput="updateParam('degree',this.value)">
+          </div>
+          <div class="param-row" id="thresholdRow" style="display:none">
+            <div class="param-label-row">
+              <span class="param-name">Decision Threshold (τ)</span>
+              <span class="param-val" id="threshVal">0.50</span>
+            </div>
+            <input type="range" id="threshSlider" min="10" max="90" value="50" oninput="updateParam('thresh',this.value)">
+          </div>
+          <div class="param-row" id="lambdaRow" style="display:none">
+            <div class="param-label-row">
+              <span class="param-name" id="lambdaLabel">λ (Regularization)</span>
+              <span class="param-val" id="lambdaVal">0.10</span>
+            </div>
+            <input type="range" id="lambdaSlider" min="1" max="500" value="10" oninput="updateParam('lambda',this.value)">
+          </div>
+        </div>
+        <div class="controls-row">
+          <button class="ctrl-btn" onclick="stepStage(-1)">← Prev</button>
+          <button class="ctrl-btn primary" onclick="runFit()">▶ Fit</button>
+          <button class="ctrl-btn" onclick="stepStage(1)">Next →</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Particles ──────────────────────────────────────────────────────────────
+(function() {
+  const cv = document.getElementById('particleCanvas');
+  const cx = cv.getContext('2d');
+  let particles = [];
+  function resize() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+  const colors = ['rgba(59,130,246,P)', 'rgba(139,92,246,P)', 'rgba(34,197,94,P)', 'rgba(203,213,225,P)'];
+  for (let i = 0; i < 90; i++) {
+    particles.push({
+      x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight,
+      vx: (Math.random()-0.5)*0.4, vy: (Math.random()-0.5)*0.4,
+      r: Math.random()*1.5+0.5,
+      color: colors[Math.floor(Math.random()*colors.length)]
+    });
+  }
+  function frame() {
+    cx.clearRect(0,0,cv.width,cv.height);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x<0) p.x=cv.width; if (p.x>cv.width) p.x=0;
+      if (p.y<0) p.y=cv.height; if (p.y>cv.height) p.y=0;
+      cx.fillStyle = p.color.replace('P','0.6');
+      cx.beginPath(); cx.arc(p.x,p.y,p.r,0,Math.PI*2); cx.fill();
+    });
+    particles.forEach((a,i) => {
+      for (let j=i+1;j<particles.length;j++) {
+        const b=particles[j], d=Math.hypot(a.x-b.x,a.y-b.y);
+        if (d<100) {
+          cx.strokeStyle = `rgba(99,102,241,${0.12*(1-d/100)})`;
+          cx.lineWidth=0.5;
+          cx.beginPath(); cx.moveTo(a.x,a.y); cx.lineTo(b.x,b.y); cx.stroke();
+        }
+      }
+    });
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+// Mouse glow
+document.addEventListener('mousemove', e => {
+  const g = document.getElementById('mouseGlow');
+  g.style.left = e.clientX+'px'; g.style.top = e.clientY+'px';
+});
+
+// Navbar scroll
+window.addEventListener('scroll', () => {
+  document.getElementById('navbar').classList.toggle('scrolled', scrollY > 20);
+});
+
+// ── State ──────────────────────────────────────────────────────────────────
+let points = [];
+let regressionType = 'linear';
+let mode = 'add';
+let dragIdx = -1;
+let params = { lr: 0.05, iter: 200, degree: 2, thresh: 0.5, lambda: 0.1 };
+let fitResult = null;
+let lossHistory = [];
+let currentStage = 0;
+
+// ── Stages ─────────────────────────────────────────────────────────────────
+const STAGES = {
+  linear: [
+    { name:'Initialise', sub:'Set θ = [w, b] = 0', info:'All parameters begin at zero. The model is <strong>ŷ = wx + b</strong> — a line through feature space. Gradient descent will refine w and b from data.', eq:'ŷ = w·x + b\nθ = [w₀, b₀] = [0, 0]' },
+    { name:'Forward pass', sub:'Compute predictions', info:'For each xᵢ compute <strong>ŷᵢ = w·xᵢ + b</strong>. This is a simple linear projection — stretching and shifting the input axis.', eq:'ŷᵢ = w·xᵢ + b' },
+    { name:'Compute loss', sub:'MSE = mean squared error', info:'MSE penalises large errors quadratically: <strong>L = (1/n) Σ(yᵢ − ŷᵢ)²</strong>. It is smooth and differentiable, perfect for gradient descent. The surface is a convex paraboloid — one global minimum.', eq:'L = (1/n) Σ (yᵢ − ŷᵢ)²' },
+    { name:'Compute gradients', sub:'∂L/∂w and ∂L/∂b', info:'Differentiate L w.r.t. each parameter. The gradient points <strong>uphill</strong> — we step in the opposite direction to descend toward the minimum.', eq:'∂L/∂w = (2/n) Σ xᵢ(ŷᵢ−yᵢ)\n∂L/∂b = (2/n) Σ (ŷᵢ−yᵢ)' },
+    { name:'Update θ', sub:'Gradient descent step', info:'Subtract η × gradient from each param. <strong>η (learning rate)</strong> controls the step. Too large → overshoot. Too small → slow. After many iterations, converge to optimal w* and b*.', eq:'w ← w − η·∂L/∂w\nb ← b − η·∂L/∂b' },
+  ],
+  poly: [
+    { name:'Feature expansion', sub:'Polynomial basis φ(x)', info:'Extend linear regression with <strong>polynomial features</strong>: x², x³, …, xᵈ. The model is still linear in parameters — a key insight. Non-linear patterns are captured via feature engineering.', eq:'φ(x) = [1, x, x², …, xᵈ]\nŷ = Σ wₖ·xᵏ' },
+    { name:'Design matrix X', sub:'Vandermonde matrix', info:'Stack φ(xᵢ) row by row into <strong>X ∈ ℝⁿˣ⁽ᵈ⁺¹⁾</strong>. Each column represents a polynomial power. Matrix operations replace loops.', eq:'X = [[1, x₁, x₁², …]\n     [1, x₂, x₂², …]]' },
+    { name:'Compute loss', sub:'Vectorised MSE', info:'Loss in matrix form: <strong>‖Xw − y‖²/n</strong>. The residual vector Xw − y captures all errors at once. This is numerically efficient and GPU-friendly.', eq:'L = (1/n) ‖Xw − y‖²' },
+    { name:'Normal equation', sub:'Closed-form solution', info:'For regression, an exact solution exists without iteration. Invert <strong>XᵀX</strong> (or use LU decomposition) to solve for optimal weights. Costly for large n but exact.', eq:'w* = (XᵀX)⁻¹ Xᵀy' },
+    { name:'Bias–variance tradeoff', sub:'Degree vs. complexity', info:'High degree → low bias, high variance → <strong>overfitting</strong>. Low degree → underfitting. Use cross-validation to pick optimal degree. Ridge/Lasso add regularization to control complexity.', eq:'Error = Bias² + Variance + Noise' },
+  ],
+  logistic: [
+    { name:'Initialise', sub:'Binary classification setup', info:'Logistic regression classifies two groups. <strong>Left half = class 0</strong>, right half = class 1. Parameters w and b start at 0. The output is a probability, not a raw value.', eq:'P(y=1|x) = σ(wx + b)\nθ = [0, 0]' },
+    { name:'Sigmoid activation', sub:'Squash output to [0,1]', info:'The sigmoid σ maps any real to a probability. The <strong>decision boundary</strong> is where σ = 0.5, i.e. wx + b = 0. The S-curve shape encodes uncertainty at the boundary.', eq:'σ(z) = 1 / (1 + e⁻ᶻ)\nP(y=1) = σ(wx + b)' },
+    { name:'Cross-entropy loss', sub:'Log-likelihood objective', info:'Binary cross-entropy <strong>severely penalises confident wrong predictions</strong>. Much better than MSE for classification since it\'s calibrated to probabilities and gradients are larger for wrong predictions.', eq:'L = −(1/n)Σ[yᵢlogŷᵢ + (1−yᵢ)log(1−ŷᵢ)]' },
+    { name:'Compute gradients', sub:'Chain rule (elegant form)', info:'After applying chain rule through the sigmoid, gradients simplify elegantly to the same form as linear regression: <strong>(ŷ − y)</strong> drives every update. This is a beautiful mathematical coincidence.', eq:'∂L/∂w = (1/n) Σ (σ(z)−y)xᵢ\n∂L/∂b = (1/n) Σ (σ(z)−y)' },
+    { name:'Decision boundary', sub:'Threshold prediction', info:'After fitting, predict class 1 where <strong>P(y=1|x) ≥ τ</strong>. The default τ = 0.5 is optimal when classes are balanced. Adjust τ to trade precision for recall depending on application.', eq:'predict 1 if σ(wx+b) ≥ τ\ndefault τ = 0.5' },
+  ],
+  ridge: [
+    { name:'Ridge Regression', sub:'L2 regularization', info:'Ridge adds an <strong>L2 penalty λ‖w‖²</strong> to the MSE loss. This shrinks all weights towards zero proportionally. No weight ever reaches exactly zero — Ridge keeps all features but reduces their magnitude.', eq:'L = MSE + λ·‖w‖²\n  = (1/n)Σ(yᵢ−ŷᵢ)² + λΣwⱼ²' },
+    { name:'Penalised objective', sub:'Bias vs. regularization', info:'The λ term <strong>trades off fit quality vs. weight magnitude</strong>. Large λ → high bias, low variance (underfit). Small λ → low bias, high variance (overfit). λ=0 recovers standard linear regression.', eq:'λ→∞: ŷ = constant (ȳ)\nλ→0: ŷ = linear fit' },
+    { name:'Closed-form solution', sub:'Ridge normal equation', info:'Ridge has an elegant closed-form: add λI to XᵀX before inverting. This <strong>always makes the matrix invertible</strong> — a key stability advantage over OLS, even when features are collinear.', eq:'w* = (XᵀX + λI)⁻¹ Xᵀy' },
+    { name:'Gradient with L2', sub:'Modified gradient', info:'In gradient descent, the L2 penalty adds a <strong>weight-decay term</strong> 2λwⱼ to each gradient. This scales the weight down proportionally each step — called L2 weight decay in deep learning.', eq:'∂L/∂w = ∂MSE/∂w + 2λ·w\nw ← w(1 − 2ηλ) − η·∂MSE/∂w' },
+    { name:'Ridge vs. OLS', sub:'Compare coefficient paths', info:'As λ increases from 0, all coefficients <strong>shrink continuously</strong> toward zero following smooth curves (coefficient paths). This makes Ridge ideal when many small effects are present. The fit line changes interactively as you adjust λ.', eq:'‖w_ridge‖ < ‖w_OLS‖\nfor any λ > 0' },
+  ],
+  lasso: [
+    { name:'Lasso Regression', sub:'L1 regularization', info:'Lasso adds an <strong>L1 penalty λ‖w‖₁ = λΣ|wⱼ|</strong>. Unlike Ridge, this produces <strong>exact sparsity</strong> — some weights become exactly zero, effectively selecting features. Lasso = Least Absolute Shrinkage and Selection Operator.', eq:'L = MSE + λ·‖w‖₁\n  = (1/n)Σ(yᵢ−ŷᵢ)² + λΣ|wⱼ|' },
+    { name:'Sparsity via L1', sub:'Why weights go to zero', info:'The L1 penalty has a <strong>sharp corner at zero</strong>. In 2D, the L1 ball is a diamond — the objective is more likely to touch a corner (sparse point) than the L2 sphere. This geometric property drives feature selection.', eq:'L1 ball: |w₁| + |w₂| ≤ t\n← corner at (t,0) or (0,t)' },
+    { name:'Subgradient descent', sub:'L1 is not differentiable at 0', info:'|w| has no derivative at w=0 so we use <strong>subgradients</strong>: sign(w) for w≠0, any value in [-1,1] for w=0. In practice, the <strong>proximal operator</strong> (soft-thresholding) is used for efficiency.', eq:'∂|w|/∂w = sign(w)\nsoft-thresh: S(w,λ) = sign(w)·max(|w|−λ, 0)' },
+    { name:'Coordinate descent', sub:'Lasso\'s native solver', info:'Coordinate descent solves one wⱼ at a time while holding others fixed. Each 1D update has an <strong>exact closed-form</strong> via soft-thresholding — far more efficient than full gradient descent for Lasso.', eq:'wⱼ ← S(ρⱼ/zⱼ, λ)\nρⱼ = Xⱼᵀ(y − X₋ⱼw₋ⱼ)' },
+    { name:'Lasso vs. Ridge', sub:'Feature selection', info:'Ridge keeps all features (small but nonzero). Lasso <strong>zeros out irrelevant features</strong> entirely — built-in feature selection. Elastic Net combines both: α·L1 + (1−α)·L2, getting sparsity + collinearity handling.', eq:'Lasso: some wⱼ = exactly 0\nRidge: all wⱼ → 0 but ≠ 0\nElastic: α·L1 + (1−α)·L2' },
+  ],
+};
+
+// ── Canvas setup ─────────────────────────────────────────────────────────
+const canvas = document.getElementById('regressionCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  W = rect.width;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = 360 * devicePixelRatio;
+  canvas.style.width = W + 'px';
+  canvas.style.height = '360px';
+  H = 360;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  draw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+const PAD = 38;
+function toCanvas(nx, ny) { return [PAD + nx*(W-2*PAD), PAD + (1-ny)*(H-2*PAD)]; }
+function fromCanvas(cx, cy) { return [(cx-PAD)/(W-2*PAD), 1-(cy-PAD)/(H-2*PAD)]; }
+
+// ── Mouse events ──────────────────────────────────────────────────────────
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const cx = e.touches ? e.touches[0].clientX : e.clientX;
+  const cy = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: cx-r.left, y: cy-r.top };
+}
+canvas.addEventListener('click', e => {
+  if (mode !== 'add') return;
+  const { x, y } = getPos(e);
+  const [nx, ny] = fromCanvas(x, y);
+  if (nx<0||nx>1||ny<0||ny>1) return;
+  let label = regressionType==='logistic' ? (nx>0.5?1:0) : 0;
+  points.push({x:nx,y:ny,label});
+  fitResult=null; lossHistory=[];
+  updateStats(); draw();
+});
+canvas.addEventListener('mousedown', e => {
+  if (mode!=='move') return;
+  const { x, y } = getPos(e);
+  dragIdx = findNearest(x, y);
+});
+canvas.addEventListener('mousemove', e => {
+  if (dragIdx<0) return;
+  const { x, y } = getPos(e);
+  const [nx, ny] = fromCanvas(x, y);
+  points[dragIdx].x = Math.max(0,Math.min(1,nx));
+  points[dragIdx].y = Math.max(0,Math.min(1,ny));
+  if (regressionType==='logistic') points[dragIdx].label = points[dragIdx].x>0.5?1:0;
+  fitResult=null; lossHistory=[]; updateStats(); draw();
+});
+canvas.addEventListener('mouseup', ()=>{ dragIdx=-1; });
+canvas.addEventListener('mouseleave', ()=>{ dragIdx=-1; });
+
+function findNearest(cx, cy) {
+  let best=-1, bestD=20;
+  points.forEach((p,i)=>{ const [px,py]=toCanvas(p.x,p.y); const d=Math.hypot(px-cx,py-cy); if(d<bestD){bestD=d;best=i;} });
+  return best;
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0,0,W,H);
+  drawGrid();
+  drawAxes();
+  if (fitResult) drawFit();
+  drawPoints();
+}
+
+function drawGrid() {
+  ctx.strokeStyle = 'rgba(59,130,246,0.05)'; ctx.lineWidth=0.5;
+  for (let i=0;i<=10;i++) {
+    const [x1]=toCanvas(i/10,0), [,y1]=toCanvas(0,i/10);
+    ctx.beginPath(); ctx.moveTo(x1,PAD); ctx.lineTo(x1,H-PAD); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(PAD,y1); ctx.lineTo(W-PAD,y1); ctx.stroke();
+  }
+}
+
+function drawAxes() {
+  const [x0,y0]=toCanvas(0,0), [x1]=toCanvas(1,0), [,y1]=toCanvas(0,1);
+  ctx.strokeStyle='rgba(99,102,241,0.3)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0,y1); ctx.stroke();
+  ctx.fillStyle='rgba(203,213,225,0.3)'; ctx.font='10px "JetBrains Mono"'; ctx.textAlign='center';
+  for (let i=0;i<=4;i++) {
+    const val=(i/4).toFixed(2);
+    const [lx]=toCanvas(i/4,0); ctx.fillText(val,lx,H-PAD+16);
+    const [,ly]=toCanvas(0,i/4); ctx.textAlign='right'; ctx.fillText(val,PAD-6,ly+4); ctx.textAlign='center';
+  }
+  ctx.fillStyle='rgba(203,213,225,0.2)'; ctx.font='11px "Space Grotesk"';
+  ctx.fillText('x',W/2,H-6);
+  ctx.save(); ctx.translate(14,H/2); ctx.rotate(-Math.PI/2); ctx.fillText('y',0,0); ctx.restore();
+}
+
+function drawFit() {
+  const isReg = ['linear','ridge','lasso','poly'].includes(regressionType);
+  if (isReg) {
+    // fit line
+    const steps=200;
+    // Blue→purple gradient line
+    const grad = ctx.createLinearGradient(PAD,0,W-PAD,0);
+    grad.addColorStop(0,'#3B82F6'); grad.addColorStop(1,'#8B5CF6');
+    ctx.strokeStyle = grad; ctx.lineWidth=2;
+    ctx.shadowColor = regressionType==='ridge'?'#22C55E':regressionType==='lasso'?'#EF4444':'#8B5CF6';
+    ctx.shadowBlur=8;
+    ctx.beginPath();
+    for (let i=0;i<=steps;i++) {
+      const nx=i/steps, ny=fitResult.predict(nx);
+      const [cx,cy]=toCanvas(nx,ny);
+      i===0?ctx.moveTo(cx,cy):ctx.lineTo(cx,cy);
+    }
+    ctx.stroke(); ctx.shadowBlur=0;
+
+    // residuals at stage 2+
+    if (currentStage>=2) {
+      ctx.lineWidth=0.5;
+      points.forEach(p=>{
+        const py=fitResult.predict(p.x);
+        const [px,pcy]=toCanvas(p.x,p.y), [,fcy]=toCanvas(p.x,py);
+        const isAbove = p.y>py;
+        ctx.strokeStyle = isAbove?'rgba(239,68,68,0.4)':'rgba(59,130,246,0.4)';
+        ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(px,pcy); ctx.lineTo(px,fcy); ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    }
+
+    // For ridge/lasso: show OLS comparison line when we have enough points
+    if ((regressionType==='ridge'||regressionType==='lasso') && points.length>=2) {
+      const olsResult = fitLinearOLS();
+      ctx.strokeStyle='rgba(203,213,225,0.2)'; ctx.lineWidth=1.5; ctx.setLineDash([5,5]);
+      ctx.beginPath();
+      for (let i=0;i<=100;i++) {
+        const nx=i/100, ny=olsResult.predict(nx);
+        const [cx,cy]=toCanvas(nx,ny);
+        i===0?ctx.moveTo(cx,cy):ctx.lineTo(cx,cy);
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle='rgba(203,213,225,0.3)'; ctx.font='9px "JetBrains Mono"';
+      ctx.textAlign='right'; ctx.fillText('OLS (no reg.)',W-PAD-4,PAD+14);
+    }
+  }
+
+  if (regressionType==='logistic') {
+    const db = fitResult.decisionBoundary();
+    if (db!==null) {
+      const lineColor = '#F59E0B';
+      ctx.strokeStyle=lineColor; ctx.lineWidth=2;
+      ctx.shadowColor=lineColor; ctx.shadowBlur=10;
+      ctx.setLineDash([6,4]);
+      const [dx]=toCanvas(db,0), [,dy1]=toCanvas(db,0), [,dy2]=toCanvas(db,1);
+      ctx.beginPath(); ctx.moveTo(dx,dy2); ctx.lineTo(dx,dy1); ctx.stroke();
+      ctx.setLineDash([]); ctx.shadowBlur=0;
+      // probability curve
+      const pGrad=ctx.createLinearGradient(PAD,0,W-PAD,0);
+      pGrad.addColorStop(0,'rgba(59,130,246,0.7)'); pGrad.addColorStop(1,'rgba(34,197,94,0.7)');
+      ctx.strokeStyle=pGrad; ctx.lineWidth=2;
+      ctx.beginPath();
+      for (let i=0;i<=200;i++) {
+        const nx=i/200, prob=fitResult.predict(nx);
+        const [cx,cy]=toCanvas(nx,prob);
+        i===0?ctx.moveTo(cx,cy):ctx.lineTo(cx,cy);
+      }
+      ctx.stroke();
+    }
+    // threshold
+    const [,ty]=toCanvas(0,params.thresh);
+    ctx.strokeStyle='rgba(245,158,11,0.3)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(PAD,ty); ctx.lineTo(W-PAD,ty); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='rgba(245,158,11,0.5)'; ctx.font='9px "JetBrains Mono"'; ctx.textAlign='right';
+    ctx.fillText('τ='+params.thresh.toFixed(2),W-PAD-4,ty-4); ctx.textAlign='center';
+  }
+}
+
+function drawPoints() {
+  points.forEach((p,i)=>{
+    const [cx,cy]=toCanvas(p.x,p.y);
+    const isClass1=regressionType==='logistic'&&p.label===1;
+    const isClass0=regressionType==='logistic'&&p.label===0;
+    let col;
+    if (isClass1) col='#EF4444';
+    else if (isClass0) col='#3B82F6';
+    else if (regressionType==='ridge') col='#22C55E';
+    else if (regressionType==='lasso') col='#F87171';
+    else col='#8B5CF6';
+
+    ctx.fillStyle=col+'33'; ctx.strokeStyle=col; ctx.lineWidth=1.5;
+    ctx.shadowColor=col; ctx.shadowBlur=6;
+    if (i===dragIdx) { ctx.strokeStyle='#fff'; ctx.lineWidth=2; }
+    ctx.beginPath();
+    if (isClass1) { ctx.moveTo(cx,cy-7); ctx.lineTo(cx+6,cy+5); ctx.lineTo(cx-6,cy+5); ctx.closePath(); }
+    else if (isClass0) { ctx.rect(cx-5,cy-5,10,10); }
+    else { ctx.arc(cx,cy,5,0,Math.PI*2); }
+    ctx.fill(); ctx.stroke(); ctx.shadowBlur=0;
+  });
+}
+
+// ── Regression algorithms ────────────────────────────────────────────────
+function fitLinearOLS() {
+  const n=points.length, xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+  const mx=xs.reduce((a,b)=>a+b,0)/n, my=ys.reduce((a,b)=>a+b,0)/n;
+  let num=0,den=0;
+  xs.forEach((x,i)=>{ num+=(x-mx)*(ys[i]-my); den+=(x-mx)**2; });
+  const w=den!==0?num/den:0, b=my-w*mx;
+  return { w, b, predict: x=>w*x+b };
+}
+
+function fitLinear() {
+  const n=points.length, xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+  const ols=fitLinearOLS();
+  const w=ols.w, b=ols.b;
+  const yhat=xs.map(x=>w*x+b);
+  const mse=ys.reduce((s,y,i)=>s+(y-yhat[i])**2,0)/n;
+  const my=ys.reduce((a,b)=>a+b,0)/n;
+  const ssTot=ys.reduce((s,y)=>s+(y-my)**2,0);
+  const ssRes=ys.reduce((s,y,i)=>s+(y-yhat[i])**2,0);
+  const r2=ssTot>0?1-ssRes/ssTot:1;
+  // GD history
+  let ww=0,bb=0; const hist=[];
+  for (let iter=0;iter<params.iter;iter++) {
+    let dw=0,db=0;
+    xs.forEach((x,i)=>{ const err=ww*x+bb-ys[i]; dw+=err*x; db+=err; });
+    ww-=params.lr*2/n*dw; bb-=params.lr*2/n*db;
+    hist.push(xs.reduce((s,x,i)=>s+(ww*x+bb-ys[i])**2,0)/n);
+  }
+  lossHistory=hist;
+  return { w, b, mse, r2, predict: x=>w*x+b, decisionBoundary:()=>null };
+}
+
+function fitPoly() {
+  const deg=params.degree, n=points.length;
+  const xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+  const X=xs.map(x=>Array.from({length:deg+1},(_,k)=>Math.pow(x,k)));
+  const Xt=transpose(X), XtX=matMul(Xt,X), Xty=matVec(Xt,ys);
+  const w=luSolve(XtX,Xty);
+  const predict=x=>w.reduce((s,wk,k)=>s+wk*Math.pow(x,k),0);
+  const yhat=xs.map(predict), my=ys.reduce((a,b)=>a+b,0)/n;
+  const ssTot=ys.reduce((s,y)=>s+(y-my)**2,0);
+  const ssRes=ys.reduce((s,y,i)=>s+(y-yhat[i])**2,0);
+  const mse=ssRes/n, r2=ssTot>0?1-ssRes/ssTot:1;
+  let ww=Array(deg+1).fill(0); const hist=[];
+  for (let it=0;it<params.iter;it++) {
+    const grad=Array(deg+1).fill(0);
+    xs.forEach((x,i)=>{ const yp=ww.reduce((s,c,k)=>s+c*Math.pow(x,k),0); const err=yp-ys[i]; for(let k=0;k<=deg;k++) grad[k]+=err*Math.pow(x,k); });
+    ww=ww.map((c,k)=>c-params.lr*2/n*grad[k]);
+    hist.push(xs.reduce((s,x,i)=>s+(ww.reduce((ss,c,k)=>ss+c*Math.pow(x,k),0)-ys[i])**2,0)/n);
+  }
+  lossHistory=hist;
+  return { w:w[1]||0, b:w[0]||0, mse, r2, predict, decisionBoundary:()=>null };
+}
+
+function fitLogistic() {
+  const n=points.length, xs=points.map(p=>p.x), ys=points.map(p=>p.label);
+  const sigmoid=z=>1/(1+Math.exp(-z));
+  let w=0,b=0; const hist=[];
+  for (let it=0;it<params.iter;it++) {
+    let dw=0,db=0;
+    xs.forEach((x,i)=>{ const yp=sigmoid(w*x+b); dw+=(yp-ys[i])*x; db+=(yp-ys[i]); });
+    w-=params.lr/n*dw; b-=params.lr/n*db;
+    const l=xs.reduce((s,x,i)=>{ const yp=sigmoid(w*x+b); return s-(ys[i]*Math.log(yp+1e-9)+(1-ys[i])*Math.log(1-yp+1e-9)); },0)/n;
+    hist.push(l);
+  }
+  lossHistory=hist;
+  const yhat=xs.map(x=>sigmoid(w*x+b)>=params.thresh?1:0);
+  const acc=yhat.filter((y,i)=>y===ys[i]).length/n;
+  return { w, b, mse:1-acc, r2:acc, predict:x=>sigmoid(w*x+b), decisionBoundary:()=>(w!==0?-b/w:null) };
+}
+
+function fitRidge() {
+  const n=points.length, xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+  const λ=params.lambda;
+  // GD with L2 penalty
+  let w=0,b=0; const hist=[];
+  for (let it=0;it<params.iter;it++) {
+    let dw=0,db=0;
+    xs.forEach((x,i)=>{ const err=w*x+b-ys[i]; dw+=err*x; db+=err; });
+    // L2 penalty gradient
+    dw=2/n*dw+2*λ*w;
+    db=2/n*db;
+    w-=params.lr*dw; b-=params.lr*db;
+    const msei=xs.reduce((s,x,i)=>s+(w*x+b-ys[i])**2,0)/n + λ*w*w;
+    hist.push(msei);
+  }
+  lossHistory=hist;
+  const yhat=xs.map(x=>w*x+b);
+  const my=ys.reduce((a,b)=>a+b,0)/n;
+  const ssTot=ys.reduce((s,y)=>s+(y-my)**2,0);
+  const ssRes=ys.reduce((s,y,i)=>s+(y-yhat[i])**2,0);
+  const mse=ssRes/n, r2=ssTot>0?1-ssRes/ssTot:1;
+  // Update lambda display
+  document.getElementById('lambdaType').textContent = `λ = ${λ.toFixed(3)}`;
+  document.getElementById('lambdaEffect').textContent = `shrink ×${(1-2*params.lr*λ).toFixed(3)}`;
+  document.getElementById('lambdaW').textContent = `‖w‖ = ${Math.abs(w).toFixed(3)}`;
+  return { w, b, mse, r2, predict:x=>w*x+b, decisionBoundary:()=>null };
+}
+
+function fitLasso() {
+  const n=points.length, xs=points.map(p=>p.x), ys=points.map(p=>p.y);
+  const λ=params.lambda;
+  // Coordinate descent with soft thresholding
+  let w=0,b=0; const hist=[];
+  const softThresh=(z,t)=>Math.sign(z)*Math.max(Math.abs(z)-t,0);
+  for (let it=0;it<params.iter;it++) {
+    // Update b (no penalty on bias)
+    const residB=ys.map((y,i)=>y-(w*xs[i]+b));
+    b+=residB.reduce((a,v)=>a+v,0)/n;
+    // Update w via coordinate descent
+    const residW=ys.map((y,i)=>y-b);
+    const rho=xs.reduce((s,x,i)=>s+x*residW[i],0);
+    const z=xs.reduce((s,x)=>s+x*x,0);
+    w=z>0?softThresh(rho/z,λ):0;
+    const msei=xs.reduce((s,x,i)=>s+(w*x+b-ys[i])**2,0)/n + λ*Math.abs(w);
+    hist.push(msei);
+  }
+  lossHistory=hist;
+  const yhat=xs.map(x=>w*x+b);
+  const my=ys.reduce((a,b)=>a+b,0)/n;
+  const ssTot=ys.reduce((s,y)=>s+(y-my)**2,0);
+  const ssRes=ys.reduce((s,y,i)=>s+(y-yhat[i])**2,0);
+  const mse=ssRes/n, r2=ssTot>0?1-ssRes/ssTot:1;
+  const sparsity = Math.abs(w)<1e-6?'sparse (w=0)':'dense';
+  document.getElementById('lambdaType').textContent = `λ = ${λ.toFixed(3)}`;
+  document.getElementById('lambdaEffect').textContent = sparsity;
+  document.getElementById('lambdaW').textContent = `‖w‖₁ = ${Math.abs(w).toFixed(3)}`;
+  return { w, b, mse, r2, predict:x=>w*x+b, decisionBoundary:()=>null };
+}
+
+// ── Matrix utils ────────────────────────────────────────────────────────
+function transpose(A) { return A[0].map((_,j)=>A.map(r=>r[j])); }
+function matMul(A,B) { return A.map(r=>B[0].map((_,j)=>r.reduce((s,_,k)=>s+r[k]*B[k][j],0))); }
+function matVec(A,v) { return A.map(r=>r.reduce((s,a,j)=>s+a*v[j],0)); }
+function luSolve(A,b) {
+  const n=A.length; const M=A.map((r,i)=>[...r,b[i]]);
+  for (let i=0;i<n;i++){
+    let max=i; for(let k=i+1;k<n;k++) if(Math.abs(M[k][i])>Math.abs(M[max][i])) max=k;
+    [M[i],M[max]]=[M[max],M[i]];
+    if(Math.abs(M[i][i])<1e-12) continue;
+    for(let k=i+1;k<=n;k++) M[i][k]/=M[i][i]; M[i][i]=1;
+    for(let j=0;j<n;j++) if(j!==i){ const f=M[j][i]; for(let k=i;k<=n;k++) M[j][k]-=f*M[i][k]; }
+  }
+  return M.map(r=>r[n]);
+}
+
+// ── Run fit ───────────────────────────────────────────────────────────────
+function runFit() {
+  if (points.length<2) { showToast('Add at least 2 points first'); return; }
+  if (regressionType==='linear') fitResult=fitLinear();
+  else if (regressionType==='poly') fitResult=fitPoly();
+  else if (regressionType==='logistic') fitResult=fitLogistic();
+  else if (regressionType==='ridge') fitResult=fitRidge();
+  else fitResult=fitLasso();
+  updateStats(); drawLossCurve(); draw();
+  document.getElementById('lossBadge').textContent='● converged';
+  document.getElementById('lossBadge').style.color='var(--green)';
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('statN').textContent=points.length;
+  if (!fitResult) {
+    ['statR2','statMSE','statSlope','statInt'].forEach(id=>document.getElementById(id).textContent='—');
+    return;
+  }
+  const r2=fitResult.r2.toFixed(3), mse=fitResult.mse.toFixed(4);
+  document.getElementById('statR2').textContent=r2;
+  document.getElementById('statR2').className='stat-value'+(fitResult.r2<0.5?' warn':' ok');
+  document.getElementById('statMSE').textContent=mse;
+  document.getElementById('statSlope').textContent=fitResult.w.toFixed(3);
+  document.getElementById('statInt').textContent=fitResult.b.toFixed(3);
+  if (regressionType==='logistic') {
+    document.getElementById('statR2').textContent=(fitResult.r2*100).toFixed(1)+'%';
+  }
+}
+
+// ── Loss curve ────────────────────────────────────────────────────────────
+const lossCanvas=document.getElementById('lossCanvas');
+const lctx=lossCanvas.getContext('2d');
+
+function drawLossCurve() {
+  const parent=lossCanvas.parentElement;
+  const lw=parent.clientWidth;
+  lossCanvas.width=lw*devicePixelRatio; lossCanvas.height=110*devicePixelRatio;
+  lossCanvas.style.width=lw+'px'; lossCanvas.style.height='110px';
+  lctx.scale(devicePixelRatio,devicePixelRatio);
+  const hist=lossHistory;
+  if (!hist.length) return;
+  lctx.clearRect(0,0,lw,110);
+  const minL=Math.min(...hist), maxL=Math.max(...hist);
+  const pad={l:40,r:16,t:12,b:28};
+  const cw=lw-pad.l-pad.r, ch=110-pad.t-pad.b;
+  lctx.strokeStyle='rgba(99,102,241,0.15)'; lctx.lineWidth=0.5;
+  lctx.beginPath(); lctx.moveTo(pad.l,pad.t); lctx.lineTo(pad.l,pad.t+ch); lctx.lineTo(pad.l+cw,pad.t+ch); lctx.stroke();
+  lctx.fillStyle='rgba(203,213,225,0.25)'; lctx.font='9px "JetBrains Mono"';
+  lctx.textAlign='right';
+  lctx.fillText(maxL.toFixed(3),pad.l-4,pad.t+8);
+  lctx.fillText(minL.toFixed(3),pad.l-4,pad.t+ch);
+  lctx.textAlign='center';
+  lctx.fillText(hist.length,pad.l+cw,pad.t+ch+14);
+  lctx.fillText('Iterations →',pad.l+cw/2,pad.t+ch+14);
+  // fill
+  lctx.beginPath();
+  hist.forEach((l,i)=>{ const x=pad.l+(i/(hist.length-1))*cw; const y=pad.t+ch-((l-minL)/(maxL-minL||1))*ch; i===0?lctx.moveTo(x,y):lctx.lineTo(x,y); });
+  lctx.lineTo(pad.l+cw,pad.t+ch); lctx.lineTo(pad.l,pad.t+ch); lctx.closePath();
+  const grad=lctx.createLinearGradient(0,pad.t,0,pad.t+ch);
+  grad.addColorStop(0,'rgba(139,92,246,0.3)'); grad.addColorStop(1,'rgba(139,92,246,0)');
+  lctx.fillStyle=grad; lctx.fill();
+  // line
+  const lineGrad=lctx.createLinearGradient(pad.l,0,pad.l+cw,0);
+  lineGrad.addColorStop(0,'#3B82F6'); lineGrad.addColorStop(1,'#8B5CF6');
+  lctx.strokeStyle=lineGrad; lctx.lineWidth=1.5;
+  lctx.shadowColor='#8B5CF6'; lctx.shadowBlur=4;
+  lctx.beginPath();
+  hist.forEach((l,i)=>{ const x=pad.l+(i/(hist.length-1))*cw; const y=pad.t+ch-((l-minL)/(maxL-minL||1))*ch; i===0?lctx.moveTo(x,y):lctx.lineTo(x,y); });
+  lctx.stroke(); lctx.shadowBlur=0;
+  document.getElementById('iterBar').style.width='100%';
+  document.getElementById('iterVal').textContent=hist.length+' / '+params.iter;
+}
+
+// ── Stage system ──────────────────────────────────────────────────────────
+function buildStageList() {
+  const stages=STAGES[regressionType];
+  const container=document.getElementById('stageList');
+  container.innerHTML='';
+  stages.forEach((s,i)=>{
+    const div=document.createElement('div');
+    div.className='stage-item'+(i===currentStage?' active':'')+(i<currentStage?' completed':'');
+    div.onclick=()=>goToStage(i);
+    div.innerHTML=`<div class="stage-dot">${i+1}</div><div class="stage-info"><div class="stage-name">${s.name}</div><div class="stage-sub">${s.sub}</div></div><span class="stage-arrow">${i===currentStage?'›':''}</span>`;
+    container.appendChild(div);
+  });
+  document.getElementById('stageProgress').textContent=`${currentStage+1} / ${stages.length}`;
+  updateInfoCard();
+}
+function goToStage(i) { currentStage=i; buildStageList(); }
+function stepStage(dir) {
+  const max=STAGES[regressionType].length-1;
+  currentStage=Math.max(0,Math.min(max,currentStage+dir));
+  buildStageList();
+}
+function updateInfoCard() {
+  const s=STAGES[regressionType][currentStage];
+  document.getElementById('infoTitle').textContent=s.name;
+  document.getElementById('infoDesc').innerHTML=s.info;
+  document.getElementById('infoDesc').classList.remove('fade-in');
+  void document.getElementById('infoDesc').offsetWidth;
+  document.getElementById('infoDesc').classList.add('fade-in');
+  const eq=document.getElementById('eqBox');
+  if (s.eq) { eq.style.display='block'; eq.textContent=s.eq; } else eq.style.display='none';
+}
+
+// ── Type switching ────────────────────────────────────────────────────────
+document.querySelectorAll('.type-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    regressionType=btn.dataset.type;
+    currentStage=0; fitResult=null; lossHistory=[]; points=[];
+    updateTypePill(); updateParamVisibility(); updateStats(); buildStageList(); draw();
+    lctx.clearRect(0,0,lossCanvas.width,lossCanvas.height);
+    document.getElementById('lossBadge').textContent='● waiting for fit';
+    document.getElementById('lossBadge').style.color='var(--yellow)';
+    document.getElementById('iterBar').style.width='0%';
+    document.getElementById('iterVal').textContent='0 / 0';
+    const isReg=['ridge','lasso'].includes(regressionType);
+    document.getElementById('lambdaDisplay').style.display=isReg?'flex':'none';
+    const hints = { logistic:'Left half = class 0, right half = class 1', ridge:'Adjust λ to see regularization effect vs OLS', lasso:'Increase λ to see sparsity — weights snap to zero!' };
+    showToast(hints[regressionType]||'Click canvas to add data points');
+    seedData();
+  });
+});
+
+function updateTypePill() {
+  const pill=document.getElementById('typePill');
+  const map={ linear:'● Linear', poly:'◆ Polynomial', logistic:'▲ Logistic', ridge:'⬡ Ridge (L2)', lasso:'⬟ Lasso (L1)' };
+  const cls={ linear:'linear', poly:'poly', logistic:'logistic', ridge:'ridge', lasso:'lasso' };
+  pill.textContent=map[regressionType]; pill.className='type-pill '+cls[regressionType];
+}
+
+function updateParamVisibility() {
+  document.getElementById('degreeRow').style.display=regressionType==='poly'?'':'none';
+  document.getElementById('thresholdRow').style.display=regressionType==='logistic'?'':'none';
+  document.getElementById('lambdaRow').style.display=['ridge','lasso'].includes(regressionType)?'':'none';
+  if (regressionType==='lasso') document.getElementById('lambdaLabel').textContent='λ (L1 — promotes sparsity)';
+  else document.getElementById('lambdaLabel').textContent='λ (L2 — weight decay)';
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────
+function setMode(m) {
+  mode=m;
+  document.getElementById('btnAdd').classList.toggle('active',m==='add');
+  document.getElementById('btnMove').classList.toggle('active',m==='move');
+  document.getElementById('hintTag').textContent=m==='add'?'click to add':'drag to move';
+  canvas.style.cursor=m==='move'?'grab':'crosshair';
+}
+function clearPoints() {
+  points=[]; fitResult=null; lossHistory=[];
+  updateStats(); draw();
+  lctx.clearRect(0,0,lossCanvas.width,lossCanvas.height);
+  document.getElementById('lossBadge').textContent='● waiting for fit';
+  document.getElementById('lossBadge').style.color='var(--yellow)';
+  document.getElementById('iterBar').style.width='0%';
+  document.getElementById('iterVal').textContent='0 / 0';
+  showToast('Canvas cleared');
+}
+function updateParam(key,val) {
+  const map={ lr:v=>v/100, iter:v=>parseInt(v), degree:v=>parseInt(v), thresh:v=>v/100, lambda:v=>v/100 };
+  params[key]=map[key](val);
+  if (key==='lr') document.getElementById('lrVal').textContent=params.lr.toFixed(3);
+  if (key==='iter') document.getElementById('iterValParam').textContent=params.iter;
+  if (key==='degree') document.getElementById('degreeVal').textContent=params.degree;
+  if (key==='thresh') { document.getElementById('threshVal').textContent=params.thresh.toFixed(2); if(fitResult)draw(); }
+  if (key==='lambda') { document.getElementById('lambdaVal').textContent=params.lambda.toFixed(2); }
+  if (fitResult && key!=='thresh') { fitResult=null; lossHistory=[]; draw(); updateStats(); }
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── Seed data ──────────────────────────────────────────────────────────────
+function seedData() {
+  points=[];
+  for (let i=0;i<20;i++) {
+    const x=0.05+Math.random()*0.9;
+    const y=Math.max(0,Math.min(1,0.15+0.65*x+(Math.random()-0.5)*0.18));
+    points.push({x,y,label:x>0.5?1:0});
+  }
+  fitResult=null; lossHistory=[]; updateStats(); draw();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+updateTypePill();
+updateParamVisibility();
+buildStageList();
+resizeCanvas();
+seedData();
+showToast('Sample data loaded — click ▶ Fit to run regression');
+</script>
+</body>
+</html>

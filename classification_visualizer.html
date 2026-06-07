@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classification Algorithm — Interactive Visualizer</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #030712;
+      --bg-dark: #0F172A;
+      --bg-mid: #111827;
+      --bg-card: rgba(15, 23, 42, 0.7);
+      --blue: #3B82F6;
+      --purple: #8B5CF6;
+      --green: #22C55E;
+      --red: #EF4444;
+      --blue-glow: rgba(59, 130, 246, 0.35);
+      --purple-glow: rgba(139, 92, 246, 0.35);
+      --green-glow: rgba(34, 197, 94, 0.25);
+      --text-primary: #FFFFFF;
+      --text-secondary: #CBD5E1;
+      --text-muted: #64748B;
+      --border: rgba(99, 102, 241, 0.15);
+      --border-hover: rgba(139, 92, 246, 0.4);
+      --indigo-ghost: rgba(99, 102, 241, 0.1);
+      --mono: 'JetBrains Mono', monospace;
+      --display: 'Space Grotesk', sans-serif;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg-deep);
+      color: var(--text-secondary);
+      font-family: var(--display);
+      min-height: 100vh;
+      overflow-x: hidden;
+      selection: background rgba(139, 92, 246, 0.3);
+    }
+
+    ::selection {
+      background: rgba(139, 92, 246, 0.3);
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+      background-size: 30px 30px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Animated background orbs */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      animation: orbFloat 12s infinite ease-in-out;
+    }
+
+    .orb-1 {
+      width: 500px;
+      height: 500px;
+      top: -100px;
+      left: -100px;
+      background: rgba(59, 130, 246, 0.07);
+      filter: blur(80px);
+    }
+
+    .orb-2 {
+      width: 400px;
+      height: 400px;
+      top: 40%;
+      right: -80px;
+      background: rgba(139, 92, 246, 0.07);
+      filter: blur(80px);
+      animation-delay: -4s;
+    }
+
+    .orb-3 {
+      width: 350px;
+      height: 350px;
+      bottom: -80px;
+      left: 40%;
+      background: rgba(34, 197, 94, 0.05);
+      filter: blur(80px);
+      animation-delay: -8s;
+    }
+
+    @keyframes orbFloat {
+
+      0%,
+      100% {
+        transform: translateY(0) scale(1);
+      }
+
+      50% {
+        transform: translateY(-30px) scale(1.05);
+      }
+    }
+
+    /* Mouse glow */
+    #mouseGlow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.08), transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      transform: translate(-50%, -50%);
+      transition: left 0.1s, top 0.1s;
+    }
+
+    /* Particle canvas */
+    #particleCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-deep);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.4);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(139, 92, 246, 0.6);
+    }
+
+    /* App layout */
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+
+/* Navbar */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(3,7,18,0.6);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(99,102,241,0.1);
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 32px;
+  transition: background 0.3s, border-color 0.3s;
+}
+nav.scrolled { background: rgba(3,7,18,0.9); border-color: rgba(99,102,241,0.25); }
+.nav-logo {
+  font-weight: 700; font-size: 15px; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-logo-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 10px var(--green); animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(1.2)} }
+.nav-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--blue); background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.2); border-radius: 20px;
+  padding: 3px 10px; letter-spacing: 0.08em;
+}
+.nav-spacer { flex: 1; }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--blue);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .eyebrow::before {
+      content: '';
+      width: 20px;
+      height: 1px;
+      background: var(--blue);
+      display: inline-block;
+    }
+
+    h1 {
+      font-size: clamp(28px, 4vw, 46px);
+      font-weight: 700;
+      letter-spacing: -2px;
+      line-height: 1.08;
+      color: var(--text-primary);
+    }
+
+    h1 .grad {
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* Algorithm switcher */
+    .algo-switcher {
+      display: flex;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 5px;
+      gap: 4px;
+      backdrop-filter: blur(20px);
+      flex-wrap: wrap;
+    }
+
+    .algo-btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 7px 14px;
+      border-radius: 9px;
+      border: none;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all .25s;
+      white-space: nowrap;
+      letter-spacing: 0.04em;
+    }
+
+    .algo-btn.active {
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+      color: #fff;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35);
+    }
+
+    .algo-btn:hover:not(.active) {
+      color: var(--text-primary);
+      background: var(--indigo-ghost);
+    }
+
+    /* Main grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 20px;
+    }
+
+    @media(max-width:860px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Glassmorphism card base */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 24px;
+      backdrop-filter: blur(20px);
+      overflow: hidden;
+      transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.4s, box-shadow 0.4s;
+      position: relative;
+    }
+
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #8B5CF6, transparent);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .glass-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(139, 92, 246, 0.4);
+      box-shadow: 0 24px 60px rgba(139, 92, 246, 0.12);
+    }
+
+    .glass-card:hover::before {
+      opacity: 1;
+    }
+
+    /* Canvas panel */
+    .canvas-panel {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 24px;
+      backdrop-filter: blur(20px);
+      overflow: hidden;
+    }
+
+    .canvas-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+      flex-wrap: wrap;
+    }
+
+    .toolbar-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    .tool-btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 5px 13px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all .2s;
+    }
+
+    .tool-btn:hover {
+      border-color: var(--purple);
+      color: var(--purple);
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    .tool-btn.active {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: var(--blue);
+    }
+
+    .tool-btn.danger:hover {
+      border-color: var(--red);
+      color: var(--red);
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    .hint-tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--indigo-ghost);
+      padding: 4px 9px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    #classCanvas {
+      display: block;
+      width: 100%;
+      cursor: crosshair;
+      background: #080d1a;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 0;
+      border-top: 1px solid rgba(99, 102, 241, 0.12);
+    }
+
+    .stat-cell {
+      flex: 1;
+      padding: 10px 14px;
+      border-right: 1px solid rgba(99, 102, 241, 0.1);
+      text-align: center;
+    }
+
+    .stat-cell:last-child {
+      border-right: none;
+    }
+
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--blue);
+      transition: color .3s, transform .2s;
+    }
+
+    .stat-value.good {
+      color: var(--green);
+    }
+
+    .stat-value.warn {
+      color: #F59E0B;
+    }
+
+    /* Class legend */
+    .class-legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 18px;
+      border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.c0 {
+      background: var(--blue);
+      box-shadow: 0 0 6px var(--blue-glow);
+    }
+
+    .legend-dot.c1 {
+      background: var(--purple);
+      box-shadow: 0 0 6px var(--purple-glow);
+    }
+
+    .legend-dot.c2 {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green-glow);
+    }
+
+    /* Side panel */
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Section header inside card */
+    .card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .dot-blue {
+      background: var(--blue);
+      box-shadow: 0 0 8px var(--blue-glow);
+    }
+
+    .dot-purple {
+      background: var(--purple);
+      box-shadow: 0 0 8px var(--purple-glow);
+    }
+
+    .dot-green {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green-glow);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.6;
+        transform: scale(0.85);
+      }
+    }
+
+    /* Stage nav */
+    .stage-list {
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .stage-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 11px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all .2s;
+      border: 1px solid transparent;
+    }
+
+    .stage-item:hover {
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    .stage-item.active {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .stage-item.completed {
+      opacity: 0.55;
+    }
+
+    .stage-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      flex-shrink: 0;
+      border: 1px solid var(--text-muted);
+      color: var(--text-muted);
+      transition: all .2s;
+    }
+
+    .stage-item.active .stage-dot {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: rgba(59, 130, 246, 0.12);
+    }
+
+    .stage-item.completed .stage-dot {
+      background: var(--indigo-ghost);
+    }
+
+    .stage-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .stage-name {
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--text-secondary);
+    }
+
+    .stage-item.active .stage-name {
+      color: var(--blue);
+    }
+
+    .stage-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .stage-arrow {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .stage-item.active .stage-arrow {
+      color: var(--blue);
+    }
+
+    .stage-progress {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--purple);
+    }
+
+    /* Info card */
+    .info-body {
+      padding: 16px 18px;
+    }
+
+    .info-desc {
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text-muted);
+    }
+
+    .info-desc strong {
+      color: var(--text-secondary);
+    }
+
+    .eq-box {
+      margin-top: 12px;
+      background: rgba(3, 7, 18, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-left: 2px solid var(--purple);
+      border-radius: 0 10px 10px 0;
+      padding: 11px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #C4B5FD;
+      line-height: 1.75;
+      position: relative;
+      overflow: hidden;
+      white-space: pre;
+    }
+
+    .eq-box::after {
+      content: 'EQ';
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    /* Params */
+    .params-body {
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .param-row {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .param-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .param-name {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .param-val {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--blue);
+      font-weight: 500;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 3px;
+      background: rgba(99, 102, 241, 0.2);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+      border: 2px solid var(--bg-deep);
+      transition: transform .15s;
+      box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+    }
+
+    input[type=range]:hover::-webkit-slider-thumb {
+      transform: scale(1.25);
+    }
+
+    input[type=range]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+      border: 2px solid var(--bg-deep);
+    }
+
+    /* Controls row */
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      padding: 14px 18px;
+      border-top: 1px solid rgba(99, 102, 241, 0.12);
+    }
+
+    .ctrl-btn {
+      flex: 1;
+      padding: 9px;
+      font-family: var(--mono);
+      font-size: 11px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all .2s;
+    }
+
+    .ctrl-btn:hover {
+      background: var(--indigo-ghost);
+      color: var(--text-primary);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .ctrl-btn.primary {
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+      color: #fff;
+      border-color: transparent;
+      font-weight: 500;
+    }
+
+    .ctrl-btn.primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+    }
+
+    .ctrl-btn.secondary {
+      border-color: rgba(139, 92, 246, 0.4);
+      color: var(--purple);
+    }
+
+    .ctrl-btn.secondary:hover {
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    /* Accuracy chart */
+    .acc-card {}
+
+    #accCanvas {
+      display: block;
+      width: 100%;
+    }
+
+    .acc-footer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 18px;
+      border-top: 1px solid rgba(99, 102, 241, 0.12);
+    }
+
+    .acc-bar-wrap {
+      flex: 1;
+      height: 3px;
+      background: rgba(99, 102, 241, 0.15);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .acc-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+      border-radius: 2px;
+      transition: width .5s cubic-bezier(0.23, 1, 0.32, 1);
+      width: 0%;
+    }
+
+    .acc-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .acc-val {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--blue);
+    }
+
+    .acc-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: #F59E0B;
+    }
+
+    /* Algorithm type pill */
+    .algo-pill {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 3px 11px;
+      border-radius: 20px;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: var(--blue);
+      background: rgba(59, 130, 246, 0.1);
+      transition: all .2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      padding: 9px 20px;
+      border-radius: 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+      z-index: 200;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2);
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    /* Confidence bar section */
+    .conf-section {
+      padding: 14px 18px;
+      border-top: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .conf-title {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+
+    .conf-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 7px;
+    }
+
+    .conf-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      width: 70px;
+      flex-shrink: 0;
+    }
+
+    .conf-bar-wrap {
+      flex: 1;
+      height: 5px;
+      background: rgba(99, 102, 241, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .conf-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .4s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    .conf-bar.c0 {
+      background: linear-gradient(90deg, var(--blue), #60A5FA);
+    }
+
+    .conf-bar.c1 {
+      background: linear-gradient(90deg, var(--purple), #A78BFA);
+    }
+
+    .conf-bar.c2 {
+      background: linear-gradient(90deg, var(--green), #4ADE80);
+    }
+
+    .conf-pct {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      width: 36px;
+      text-align: right;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .fade-in {
+      animation: fadeIn .3s ease forwards;
+    }
+  </style>
+</head>
+
+<body>
+<canvas id="particleCanvas"></canvas>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div id="mouseGlow"></div>
+    <nav id="navbar">
+      <div class="nav-logo">
+        <div class="nav-logo-dot"></div>
+        ClassificationLab
+      </div>
+      <span class="nav-tag">// DEEP SPACE</span>
+      <div class="nav-spacer"></div>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted)">5 algorithms</span>
+    </nav>
+  <!-- Background elements -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <canvas id="particleCanvas"></canvas>
+  <div id="mouseGlow"></div>
+
+  <div class="app">
+
+    <!-- Header -->
+    
+    <div class="header">
+      <div class="header-left">
+        <div class="eyebrow">Algorithm Visualizer</div>
+        <h1>Classification<br><span class="grad">Deep Dive</span></h1>
+        <div class="subtitle">// click canvas to add points · choose class · train classifier</div>
+      </div>
+      <div class="algo-switcher" id="algoSwitcher">
+        <button class="algo-btn active" data-algo="knn">KNN</button>
+        <button class="algo-btn" data-algo="logistic">Logistic Reg</button>
+        <button class="algo-btn" data-algo="svm">SVM</button>
+        <button class="algo-btn" data-algo="dtree">Decision Tree</button>
+        <button class="algo-btn" data-algo="rforest">Random Forest</button>
+      </div>
+    </div>
+
+    <div class="main-grid">
+
+      <!-- LEFT: Canvas column -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <div class="canvas-panel">
+          <!-- Class legend + toolbar -->
+          <div class="class-legend">
+            <span
+              style="font-family:var(--mono);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;">Classes:</span>
+            <div class="legend-item">
+              <div class="legend-dot c0"></div>Class 0 ■
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot c1"></div>Class 1 ◆
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot c2"></div>Class 2 ▲
+            </div>
+            <div style="flex:1;"></div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span style="font-family:var(--mono);font-size:10px;color:var(--text-muted);">Add as:</span>
+              <button class="tool-btn active" id="cls0Btn" onclick="setClass(0)">C0</button>
+              <button class="tool-btn" id="cls1Btn" onclick="setClass(1)">C1</button>
+              <button class="tool-btn" id="cls2Btn" onclick="setClass(2)">C2</button>
+            </div>
+          </div>
+
+          <div class="canvas-toolbar">
+            <span class="toolbar-label">Decision Boundary</span>
+            <div id="algoPill" class="algo-pill">⬡ KNN</div>
+            <div class="spacer"></div>
+            <button class="tool-btn" onclick="seedData()">⟳ Demo Data</button>
+            <button class="tool-btn danger" onclick="clearPoints()">✕ Clear</button>
+            <span class="hint-tag" id="hintTag">click to add</span>
+          </div>
+
+          <canvas id="classCanvas" height="370"></canvas>
+
+          <div class="stats-bar">
+            <div class="stat-cell">
+              <div class="stat-label">Points</div>
+              <div class="stat-value" id="statN">0</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">Accuracy</div>
+              <div class="stat-value" id="statAcc">—</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">C0</div>
+              <div class="stat-value" id="statC0">0</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">C1</div>
+              <div class="stat-value" id="statC1">0</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-label">C2</div>
+              <div class="stat-value" id="statC2">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Confusion matrix / accuracy chart -->
+        <div class="glass-card acc-card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-dot dot-blue"></div>
+              <span>Confusion Matrix + Class Confidence</span>
+            </div>
+            <span class="acc-badge" id="accBadge">● awaiting classify</span>
+          </div>
+          <canvas id="accCanvas" height="130"></canvas>
+          <div class="acc-footer">
+            <span class="acc-label">Train accuracy</span>
+            <div class="acc-bar-wrap">
+              <div class="acc-bar" id="accBar"></div>
+            </div>
+            <span class="acc-val" id="accVal">0%</span>
+          </div>
+          <div class="conf-section" id="confSection" style="display:none">
+            <div class="conf-title">Class prediction confidence (last hover)</div>
+            <div class="conf-row"><span class="conf-label">Class 0</span>
+              <div class="conf-bar-wrap">
+                <div class="conf-bar c0" id="conf0" style="width:0%"></div>
+              </div><span class="conf-pct" id="conf0pct">0%</span>
+            </div>
+            <div class="conf-row"><span class="conf-label">Class 1</span>
+              <div class="conf-bar-wrap">
+                <div class="conf-bar c1" id="conf1" style="width:0%"></div>
+              </div><span class="conf-pct" id="conf1pct">0%</span>
+            </div>
+            <div class="conf-row"><span class="conf-label">Class 2</span>
+              <div class="conf-bar-wrap">
+                <div class="conf-bar c2" id="conf2" style="width:0%"></div>
+              </div><span class="conf-pct" id="conf2pct">0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Side panel -->
+      <div class="side-panel">
+
+        <!-- Stage nav -->
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-dot dot-purple"></div><span>Algorithm Stages</span>
+            </div>
+            <span class="stage-progress" id="stageProgress">1 / 5</span>
+          </div>
+          <div class="stage-list" id="stageList"></div>
+        </div>
+
+        <!-- Info card -->
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-dot dot-green"></div><span id="infoTitle">Stage Info</span>
+            </div>
+          </div>
+          <div class="info-body">
+            <div class="info-desc" id="infoDesc"></div>
+            <div class="eq-box" id="eqBox" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- Hyperparameters -->
+        <div class="glass-card">
+          <div class="card-header">
+            <div class="card-title">
+              <div class="card-dot dot-blue"></div><span>Hyperparameters</span>
+            </div>
+          </div>
+          <div class="params-body">
+
+            <!-- KNN params -->
+            <div id="knnParams">
+              <div class="param-row">
+                <div class="param-label-row">
+                  <span class="param-name">K Neighbours</span>
+                  <span class="param-val" id="kVal">3</span>
+                </div>
+                <input type="range" id="kSlider" min="1" max="15" value="3" oninput="updateParam('k',this.value)">
+              </div>
+            </div>
+
+            <!-- Logistic params -->
+            <div id="logisticParams" style="display:none">
+              <div class="param-row">
+                <div class="param-label-row">
+                  <span class="param-name">Learning Rate (η)</span>
+                  <span class="param-val" id="lrVal">0.05</span>
+                </div>
+                <input type="range" id="lrSlider" min="1" max="100" value="5" oninput="updateParam('lr',this.value)">
+              </div>
+              <div class="param-row">
+                <div class="param-label-row">
+                  <span class="param-name">Iterations</span>
+                  <span class="param-val" id="iterVal2">300</span>
+                </div>
+                <input type="range" id="iterSlider" min="50" max="1000" value="300"
+                  oninput="updateParam('iter',this.value)">
+              </div>
+            </div>
+
+            <!-- SVM params -->
+            <div id="svmParams" style="display:none">
+              <div class="param-row">
+                <div class="param-label-row">
+                  <span class="param-name">C (Regularization)</span>
+                  <span class="param-val" id="cVal">1.0</span>
+                </div>
+                <input type="range" id="cSlider" min="1" max="100" value="10" oninput="updateParam('c',this.value)">
+              </div>
+              <div class="param-row">
+                <div class="param-label-row">
+                  <span class="param-name">Kernel</span>
+                  <span class="param-val" id="kernelVal">RBF</span>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:2px;">
+                  <button class="tool-btn active" id="kLinear" onclick="setKernel('linear')">Linear</button>
+                  <button class="tool-btn" id="kRbf" onclick="setKernel('rbf')">RBF</button>
+                  <button class="tool-btn" id="kPoly" onclick="setKernel('poly')">Poly</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Decision Tree params -->
+            <div id="dtreeParams" style="display:none">
+              <div class="param-row">
+                <div class="param-label-row">
+                  <span class="param-name">Max Depth</span>
+                  <span class="param-val" id="depthVal">3</span>
+                </div>
+                <input type="range" id="depthSlider" min="1" max="8" value="3"
+                  oninput="updateParam('depth',this.value)">
+              </div>
+              <div class="param-row">
+                <div class="param-label-row">
+                  <span class="param-name">Min Leaf Size</span>
+                  <span class="param-val" id="leafVal">3</span>
+                </div>
+                <input type="range" id="leafSlider" min="1" max="10" value="3" oninput="updateParam('leaf',this.value)">
+              </div>
+            </div>
+
+            <!-- Random Forest params -->
+            <div id="rforestParams" style="display:none">
+              <div class="param-row">
+                <div class="param-label-row">
+                  <span class="param-name">Num Trees</span>
+                  <span class="param-val" id="treesVal">10</span>
+                </div>
+                <input type="range" id="treesSlider" min="3" max="30" value="10"
+                  oninput="updateParam('trees',this.value)">
+              </div>
+              <div class="param-row">
+                <div class="param-label-row">
+                  <span class="param-name">Max Depth</span>
+                  <span class="param-val" id="rfDepthVal">3</span>
+                </div>
+                <input type="range" id="rfDepthSlider" min="1" max="6" value="3"
+                  oninput="updateParam('rfdepth',this.value)">
+              </div>
+            </div>
+
+          </div>
+          <div class="controls-row">
+            <button class="ctrl-btn" onclick="stepStage(-1)">← Prev</button>
+            <button class="ctrl-btn primary" onclick="runClassify()">▶ Classify</button>
+            <button class="ctrl-btn secondary" onclick="stepStage(1)">Next →</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ══════════════════════════════════════════════════════
+    //  PARTICLES
+    // ══════════════════════════════════════════════════════
+    (function () {
+      const c = document.getElementById('particleCanvas');
+      const ctx = c.getContext('2d');
+      let W, H, pts = [];
+      const COLS = ['rgba(59,130,246,', 'rgba(139,92,246,', 'rgba(34,197,94,', 'rgba(203,213,225,'];
+      function resize() { W = c.width = innerWidth; H = c.height = innerHeight; }
+      function init() { pts = []; for (let i = 0; i < 120; i++) { pts.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .25, vy: (Math.random() - .5) * .25, r: Math.random() * 1.5 + .5, c: COLS[Math.floor(Math.random() * COLS.length)], o: Math.random() * .4 + .1 }); } }
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i];
+          p.x += p.vx; p.y += p.vy;
+          if (p.x < 0) p.x = W; if (p.x > W) p.x = 0; if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = p.c + p.o + ')'; ctx.fill();
+          for (let j = i + 1; j < pts.length; j++) {
+            const q = pts[j]; const d = Math.hypot(p.x - q.x, p.y - q.y);
+            if (d < 100) { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.strokeStyle = p.c + (p.o * (1 - d / 100) * .5) + ')'; ctx.lineWidth = .4; ctx.stroke(); }
+          }
+        }
+        requestAnimationFrame(draw);
+      }
+      resize(); init(); draw();
+      window.addEventListener('resize', () => { resize(); init(); });
+    })();
+
+    // Mouse glow
+    document.addEventListener('mousemove', e => {
+      const g = document.getElementById('mouseGlow');
+      g.style.left = e.clientX + 'px'; g.style.top = e.clientY + 'px';
+    });
+
+    // ══════════════════════════════════════════════════════
+    //  STATE
+    // ══════════════════════════════════════════════════════
+    let points = [];
+    let algoType = 'knn';
+    let activeClass = 0;
+    let params = { k: 3, lr: 0.05, iter: 300, c: 1.0, kernel: 'linear', depth: 3, leaf: 3, trees: 10, rfdepth: 3 };
+    let classifyResult = null;
+    let currentStage = 0;
+    let boundaryGrid = null; // flat Uint8Array of class ids
+    let W, H;
+
+    const CLASS_COLORS = ['#3B82F6', '#8B5CF6', '#22C55E'];
+    const CLASS_GLOW = ['rgba(59,130,246,0.5)', 'rgba(139,92,246,0.5)', 'rgba(34,197,94,0.5)'];
+    const CLASS_FILLS = ['rgba(59,130,246,0.12)', 'rgba(139,92,246,0.12)', 'rgba(34,197,94,0.1)'];
+    const CLASS_SHAPES = ['square', 'diamond', 'triangle'];
+
+    // ══════════════════════════════════════════════════════
+    //  STAGES DATA
+    // ══════════════════════════════════════════════════════
+    const STAGES = {
+      knn: [
+        { name: 'Store Training Data', sub: 'Lazy learning — no fit', info: 'KNN is a <strong>lazy learner</strong>: it stores all training points and defers computation to prediction time. There are no learned parameters — the data IS the model.', eq: 'Model = {(x₁,y₁), (x₂,y₂), …, (xₙ,yₙ)}' },
+        { name: 'Compute Distances', sub: 'Euclidean or Manhattan', info: 'At prediction time, compute the distance from the query point to every training point. <strong>Euclidean distance</strong> is most common for continuous features.', eq: 'd(p,q) = √(Σ(pᵢ−qᵢ)²)' },
+        { name: 'Find K Neighbours', sub: 'Sort & select top-K', info: 'Sort all distances ascending and select the <strong>K closest training examples</strong>. The value of K is the critical hyperparameter — small K = noisy boundary, large K = smoother boundary.', eq: 'N_K(x) = k points with smallest d(x, xᵢ)' },
+        { name: 'Vote / Majority Rule', sub: 'Plurality wins', info: 'Among the K neighbours, <strong>count votes for each class</strong>. The class with the most votes wins. Ties can be broken by distance or random choice.', eq: 'ŷ = argmax_c Σ 𝟙[yᵢ=c]  for xᵢ ∈ N_K(x)' },
+        { name: 'Decision Boundary', sub: 'Voronoi tessellation', info: 'The KNN boundary is a <strong>piecewise linear Voronoi diagram</strong>. It can approximate any shape but is prone to overfitting (K=1) or over-smoothing (large K). Complexity scales as O(n) per query.', eq: 'K↑ → smoother boundary\nK↓ → complex, overfits' },
+      ],
+      logistic: [
+        { name: 'Feature Space', sub: 'Linear decision surface', info: 'Multinomial logistic regression finds a <strong>linear hyperplane</strong> separating classes. We learn one weight vector per class in the one-vs-rest scheme. The boundary is always linear.', eq: 'z_c = w_c · x + b_c' },
+        { name: 'Softmax Output', sub: 'Probability distribution', info: 'Apply <strong>softmax</strong> to convert raw scores to class probabilities. All probabilities sum to 1. The highest probability class is the prediction.', eq: 'P(y=c|x) = exp(z_c) / Σ exp(z_k)' },
+        { name: 'Cross-Entropy Loss', sub: 'Log-likelihood', info: 'Categorical cross-entropy penalises confident wrong predictions. It is the <strong>negative log-probability of the true class</strong>. Minimising it maximises correct class probability.', eq: 'L = −(1/n) Σᵢ log P(y=yᵢ|xᵢ)' },
+        { name: 'Gradient Descent', sub: 'Back-propagate gradients', info: 'Compute ∂L/∂w for each weight. <strong>The gradient of softmax + cross-entropy simplifies beautifully</strong>: it is just the prediction error (ŷ−y). Update all weights simultaneously.', eq: '∂L/∂w_c = (1/n) Σ (P(y=c|x) − 𝟙[y=c])x' },
+        { name: 'Decision Boundary', sub: 'One-vs-rest hyperplanes', info: 'Each class has its own linear boundary. The final boundary is where two class probabilities are equal. For K classes you get K(K-1)/2 boundaries. Logistic regression is <strong>fast and interpretable</strong>.', eq: 'boundary: P(y=c₁|x) = P(y=c₂|x)' },
+      ],
+      svm: [
+        { name: 'Max-Margin Principle', sub: 'Widest street wins', info: 'SVM seeks the hyperplane that <strong>maximises the margin</strong> — the distance to the nearest points of each class (support vectors). Max margin → best generalisation.', eq: 'maximize: 2/‖w‖  (margin width)' },
+        { name: 'Support Vectors', sub: 'Critical data points', info: 'Only the points closest to the boundary — the <strong>support vectors</strong> — determine the decision surface. All other points can be removed without changing the model.', eq: 'SVs: {xᵢ : yᵢ(w·xᵢ+b)=1}' },
+        { name: 'Kernel Trick', sub: 'Non-linear mapping', info: 'Map inputs to a higher-dimensional space via a kernel function. <strong>RBF kernel</strong>: K(x,z)=exp(−γ‖x−z‖²). The decision boundary is linear in that space — non-linear in input space.', eq: 'K(x,z) = exp(−γ‖x−z‖²)  [RBF]\nK(x,z) = (x·z+1)ᵈ  [Poly]' },
+        { name: 'Soft Margin (C)', sub: 'Trade margin for errors', info: 'Parameter C controls the <strong>bias-variance tradeoff</strong>. High C: small margin, few errors (may overfit). Low C: large margin, more misclassified allowed (more regularised).', eq: 'min ½‖w‖² + C Σ ξᵢ\nsubject to yᵢ(w·xᵢ+b)≥1−ξᵢ' },
+        { name: 'Decision Output', sub: 'Sign of score', info: 'Classify by the <strong>sign of the decision function</strong>. The score magnitude indicates confidence (distance from boundary). SVMs generalise well even in high-dimensional space.', eq: 'ŷ = sign(w·x + b)\nconf = |w·x + b| / ‖w‖' },
+      ],
+      dtree: [
+        { name: 'Root Node', sub: 'Best feature to split', info: 'A decision tree recursively partitions the feature space. At each node, we choose the <strong>best feature & threshold</strong> to split on — the one that most reduces impurity.', eq: 'Gain(S,A) = Entropy(S) − Σ(|Sᵥ|/|S|)·Entropy(Sᵥ)' },
+        { name: 'Splitting Criterion', sub: 'Gini or Entropy', info: '<strong>Gini impurity</strong>: probability of a random sample being mis-classified. <strong>Entropy</strong>: information-theoretic purity. Both give similar splits in practice.', eq: 'Gini = 1 − Σ pᵢ²\nEntropy = −Σ pᵢ log₂(pᵢ)' },
+        { name: 'Recursive Splitting', sub: 'Grow until stopping rule', info: 'Repeat: find best split, partition data, recurse on each child. Stop when <strong>max depth</strong> is reached, node is pure, or minimum samples is violated.', eq: 'if impurity>0 and depth<max_depth:\n  split(node)' },
+        { name: 'Leaf Prediction', sub: 'Majority class wins', info: 'Each leaf node holds the <strong>majority class</strong> of its training samples. Prediction is a series of if-else decisions along the tree from root to leaf.', eq: 'leaf.class = argmax_c count(y=c in leaf)' },
+        { name: 'Decision Boundary', sub: 'Axis-aligned rectangles', info: 'Decision tree boundaries are <strong>axis-aligned</strong> — features are tested independently. Deep trees can overfit; shallow trees underfit. Max depth is the key regularisation parameter.', eq: 'depth↑ → complex, overfits\ndepth↓ → simple, underfits' },
+      ],
+      rforest: [
+        { name: 'Bootstrap Sampling', sub: 'Bagging strategy', info: 'Random Forest trains <strong>many trees on random subsets</strong> (with replacement) of the training data — this is called "bagging". Each tree sees ~63% unique samples.', eq: 'Sₜ = bootstrap_sample(S)\n|Sₜ| = |S|, with replacement' },
+        { name: 'Feature Randomness', sub: 'Random feature subsets', info: 'At each split, only a <strong>random subset of features √p</strong> is considered. This de-correlates the trees, reducing variance more than plain bagging.', eq: 'features_to_try = √(total_features)\nat each split' },
+        { name: 'Train Many Trees', sub: 'Weak → strong ensemble', info: 'Each tree is a <strong>weak learner</strong> trained independently. Individual trees may overfit — but their combined vote averages out idiosyncratic errors.', eq: 'T trees: {h₁(x), h₂(x), …, hₜ(x)}' },
+        { name: 'Aggregate Votes', sub: 'Majority voting', info: 'At prediction, <strong>each tree votes</strong> for a class. The class with the most votes wins. Probabilities are estimated as the fraction of trees voting for each class.', eq: 'ŷ = mode{h₁(x), …, hₜ(x)}\nP(c) = (votes for c) / T' },
+        { name: 'Out-of-Bag Error', sub: 'Free validation signal', info: 'Samples not in a tree\'s bootstrap set form its <strong>out-of-bag set</strong>. OOB error is a reliable unbiased estimate of generalisation error — no separate validation set needed.', eq: 'OOB error = mean error\n  on out-of-bag samples' },
+      ],
+    };
+
+    // ══════════════════════════════════════════════════════
+    //  CANVAS SETUP
+    // ══════════════════════════════════════════════════════
+    const canvas = document.getElementById('classCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      W = rect.width;
+      canvas.width = W * devicePixelRatio;
+      canvas.height = 370 * devicePixelRatio;
+      canvas.style.width = W + 'px';
+      canvas.style.height = '370px';
+      H = 370;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+      draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // ══════════════════════════════════════════════════════
+    //  CANVAS DRAWING
+    // ══════════════════════════════════════════════════════
+    const GRID = 4; // resolution of decision boundary pixels
+
+    function draw() {
+      if (!W || !H) return;
+      ctx.clearRect(0, 0, W, H);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(59,130,246,0.06)';
+      ctx.lineWidth = 0.5;
+      for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y < H; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+      // Decision boundary fill
+      if (boundaryGrid) {
+        const cols = Math.ceil(W / GRID);
+        const rows = Math.ceil(H / GRID);
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const cls = boundaryGrid[r * cols + c];
+            ctx.fillStyle = CLASS_FILLS[cls];
+            ctx.fillRect(c * GRID, r * GRID, GRID, GRID);
+          }
+        }
+
+        // Boundary edges (simple outline)
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const cls = boundaryGrid[r * cols + c];
+            const right = c + 1 < cols ? boundaryGrid[r * cols + c + 1] : cls;
+            const down = r + 1 < rows ? boundaryGrid[(r + 1) * cols + c] : cls;
+            if (right !== cls) {
+              ctx.strokeStyle = CLASS_COLORS[cls]; ctx.lineWidth = 1; ctx.globalAlpha = 0.4;
+              ctx.beginPath(); ctx.moveTo((c + 1) * GRID, r * GRID); ctx.lineTo((c + 1) * GRID, (r + 1) * GRID); ctx.stroke();
+              ctx.globalAlpha = 1;
+            }
+            if (down !== cls) {
+              ctx.strokeStyle = CLASS_COLORS[cls]; ctx.lineWidth = 1; ctx.globalAlpha = 0.4;
+              ctx.beginPath(); ctx.moveTo(c * GRID, (r + 1) * GRID); ctx.lineTo((c + 1) * GRID, (r + 1) * GRID); ctx.stroke();
+              ctx.globalAlpha = 1;
+            }
+          }
+        }
+      }
+
+      // Data points
+      const t = Date.now() / 1000;
+      points.forEach((p, i) => {
+        const px = p.x * W, py = p.y * H;
+        const pulse = Math.sin(t * 2 + i) * 1.5;
+        const r = 6 + pulse;
+
+        ctx.shadowColor = CLASS_GLOW[p.c];
+        ctx.shadowBlur = 8 + pulse * 2;
+
+        ctx.fillStyle = CLASS_COLORS[p.c];
+        ctx.strokeStyle = '#0F172A';
+        ctx.lineWidth = 1.5;
+
+        if (p.c === 0) {
+          // Square
+          ctx.fillRect(px - r, py - r, r * 2, r * 2);
+          ctx.strokeRect(px - r, py - r, r * 2, r * 2);
+        } else if (p.c === 1) {
+          // Diamond
+          ctx.beginPath();
+          ctx.moveTo(px, py - r * 1.2); ctx.lineTo(px + r, py); ctx.lineTo(px, py + r * 1.2); ctx.lineTo(px - r, py);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+        } else {
+          // Triangle
+          ctx.beginPath();
+          ctx.moveTo(px, py - r * 1.2); ctx.lineTo(px + r * 1.1, py + r); ctx.lineTo(px - r * 1.1, py + r);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+        }
+        ctx.shadowBlur = 0;
+      });
+
+      requestAnimationFrame(draw);
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  CLASSIFICATION ALGORITHMS
+    // ══════════════════════════════════════════════════════
+
+    function euclidean(a, b) {
+      return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+    }
+
+    // KNN prediction
+    function knnPredict(qx, qy) {
+      if (points.length === 0) return { cls: 0, probs: [0.33, 0.33, 0.34] };
+      const dists = points.map(p => ({ d: Math.sqrt((p.x - qx) ** 2 + (p.y - qy) ** 2), c: p.c }));
+      dists.sort((a, b) => a.d - b.d);
+      const K = Math.min(params.k, dists.length);
+      const votes = [0, 0, 0];
+      dists.slice(0, K).forEach(d => votes[d.c]++);
+      const cls = votes.indexOf(Math.max(...votes));
+      const total = K;
+      return { cls, probs: votes.map(v => v / total) };
+    }
+
+    // Softmax helper
+    function softmax(arr) {
+      const mx = Math.max(...arr);
+      const exp = arr.map(v => Math.exp(v - mx));
+      const sum = exp.reduce((a, b) => a + b, 0);
+      return exp.map(v => v / sum);
+    }
+
+    // Logistic regression (one-vs-rest, gradient descent)
+    let logisticWeights = null;
+    function trainLogistic() {
+      const N = points.length;
+      if (N < 2) return;
+      const C = 3;
+      // W: C x 3 (x,y,bias)
+      let W2 = Array.from({ length: C }, () => [0, 0, 0]);
+      for (let iter = 0; iter < params.iter; iter++) {
+        const grads = Array.from({ length: C }, () => [0, 0, 0]);
+        for (const p of points) {
+          const scores = W2.map(w => w[0] * p.x + w[1] * p.y + w[2]);
+          const probs = softmax(scores);
+          for (let c = 0; c < C; c++) {
+            const err = probs[c] - (p.c === c ? 1 : 0);
+            grads[c][0] += err * p.x;
+            grads[c][1] += err * p.y;
+            grads[c][2] += err;
+          }
+        }
+        for (let c = 0; c < C; c++) {
+          for (let j = 0; j < 3; j++) W2[c][j] -= params.lr * grads[c][j] / N;
+        }
+      }
+      logisticWeights = W2;
+    }
+
+    function logisticPredict(qx, qy) {
+      if (!logisticWeights) return { cls: 0, probs: [0.33, 0.33, 0.34] };
+      const scores = logisticWeights.map(w => w[0] * qx + w[1] * qy + w[2]);
+      const probs = softmax(scores);
+      return { cls: probs.indexOf(Math.max(...probs)), probs };
+    }
+
+    // SVM (simplified linear OvR with gradient descent)
+    let svmWeights = null;
+    function trainSVM() {
+      if (points.length < 2) return;
+      const C = 3;
+      let W2 = Array.from({ length: C }, () => [0, 0, 0]);
+      const lr = 0.01, reg = 1 / params.c;
+      for (let iter = 0; iter < 500; iter++) {
+        for (const p of points) {
+          for (let c = 0; c < C; c++) {
+            const y = p.c === c ? 1 : -1;
+            let score = W2[c][0] * p.x + W2[c][1] * p.y + W2[c][2];
+            if (params.kernel === 'rbf') {
+              // Approximate RBF with a simple non-linearity for visualization
+              score += 0.3 * Math.sin(score * Math.PI);
+            }
+            if (y * score < 1) {
+              W2[c][0] += lr * (y * p.x - reg * W2[c][0]);
+              W2[c][1] += lr * (y * p.y - reg * W2[c][1]);
+              W2[c][2] += lr * y;
+            } else {
+              W2[c][0] -= lr * reg * W2[c][0];
+              W2[c][1] -= lr * reg * W2[c][1];
+            }
+          }
+        }
+      }
+      svmWeights = W2;
+    }
+
+    function svmPredict(qx, qy) {
+      if (!svmWeights) return { cls: 0, probs: [0.33, 0.33, 0.34] };
+      let scores = svmWeights.map(w => {
+        let s = w[0] * qx + w[1] * qy + w[2];
+        if (params.kernel === 'rbf') s += 0.3 * Math.sin(s * Math.PI);
+        if (params.kernel === 'poly') s = s * s * Math.sign(s);
+        return s;
+      });
+      const probs = softmax(scores.map(s => s * 2));
+      return { cls: probs.indexOf(Math.max(...probs)), probs };
+    }
+
+    // Decision Tree
+    let dtreeModel = null;
+    function trainDTree() {
+      if (points.length < 2) return;
+      dtreeModel = buildTree(points, 0);
+    }
+
+    function gini(pts) {
+      if (pts.length === 0) return 0;
+      const counts = [0, 0, 0];
+      pts.forEach(p => counts[p.c]++);
+      const n = pts.length;
+      return 1 - counts.reduce((s, c) => s + (c / n) ** 2, 0);
+    }
+
+    function majority(pts) {
+      const counts = [0, 0, 0];
+      pts.forEach(p => counts[p.c]++);
+      return counts.indexOf(Math.max(...counts));
+    }
+
+    function buildTree(pts, depth) {
+      if (pts.length <= params.leaf || depth >= params.depth || gini(pts) < 0.01) {
+        return { leaf: true, cls: majority(pts), n: pts.length };
+      }
+      let bestGain = -1, bestAxis, bestThresh, bestL, bestR;
+      ['x', 'y'].forEach(axis => {
+        const vals = [...new Set(pts.map(p => p[axis]))].sort((a, b) => a - b);
+        for (let i = 0; i < vals.length - 1; i++) {
+          const t = (vals[i] + vals[i + 1]) / 2;
+          const L = pts.filter(p => p[axis] <= t), R = pts.filter(p => p[axis] > t);
+          if (!L.length || !R.length) continue;
+          const gain = gini(pts) - (L.length / pts.length) * gini(L) - (R.length / pts.length) * gini(R);
+          if (gain > bestGain) { bestGain = gain; bestAxis = axis; bestThresh = t; bestL = L; bestR = R; }
+        }
+      });
+      if (bestGain < 0) return { leaf: true, cls: majority(pts), n: pts.length };
+      return {
+        leaf: false, axis: bestAxis, thresh: bestThresh,
+        left: buildTree(bestL, depth + 1), right: buildTree(bestR, depth + 1)
+      };
+    }
+
+    function treePredict(node, qx, qy) {
+      if (node.leaf) return node.cls;
+      const val = node.axis === 'x' ? qx : qy;
+      return treePredict(val <= node.thresh ? node.left : node.right, qx, qy);
+    }
+
+    function dtreePredict(qx, qy) {
+      if (!dtreeModel) return { cls: 0, probs: [0.33, 0.33, 0.34] };
+      const cls = treePredict(dtreeModel, qx, qy);
+      const p = [0, 0, 0]; p[cls] = 1;
+      return { cls, probs: p };
+    }
+
+    // Random Forest
+    let rfModel = null;
+    function trainRForest() {
+      if (points.length < 2) return;
+      const trees = [];
+      const T = params.trees;
+      for (let t = 0; t < T; t++) {
+        // Bootstrap sample
+        const sample = [];
+        for (let i = 0; i < points.length; i++) {
+          sample.push(points[Math.floor(Math.random() * points.length)]);
+        }
+        trees.push(buildTree(sample, 0, params.rfdepth));
+      }
+      rfModel = trees;
+    }
+
+    function rfPredict(qx, qy) {
+      if (!rfModel) return { cls: 0, probs: [0.33, 0.33, 0.34] };
+      const votes = [0, 0, 0];
+      rfModel.forEach(tree => {
+        const node = tree;
+        votes[treePredict(node, qx, qy)]++;
+      });
+      const total = rfModel.length;
+      const cls = votes.indexOf(Math.max(...votes));
+      return { cls, probs: votes.map(v => v / total) };
+    }
+
+    // Unified predict dispatcher
+    function predict(qx, qy) {
+      switch (algoType) {
+        case 'knn': return knnPredict(qx, qy);
+        case 'logistic': return logisticPredict(qx, qy);
+        case 'svm': return svmPredict(qx, qy);
+        case 'dtree': return dtreePredict(qx, qy);
+        case 'rforest': return rfPredict(qx, qy);
+        default: return { cls: 0, probs: [0.33, 0.33, 0.34] };
+      }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  RUN CLASSIFICATION + BOUNDARY
+    // ══════════════════════════════════════════════════════
+    function runClassify() {
+      if (points.length < 3) { showToast('Add at least 3 points to classify'); return; }
+
+      showToast('Training ' + algoType.toUpperCase() + '…');
+
+      // Train model
+      switch (algoType) {
+        case 'logistic': trainLogistic(); break;
+        case 'svm': trainSVM(); break;
+        case 'dtree': trainDTree(); break;
+        case 'rforest': trainRForest(); break;
+        // KNN needs no training
+      }
+
+      // Build boundary grid
+      const cols = Math.ceil(W / GRID);
+      const rows = Math.ceil(H / GRID);
+      boundaryGrid = new Uint8Array(cols * rows);
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const qx = (c * GRID + GRID / 2) / W;
+          const qy = (r * GRID + GRID / 2) / H;
+          boundaryGrid[r * cols + c] = predict(qx, qy).cls;
+        }
+      }
+
+      // Compute accuracy
+      let correct = 0;
+      points.forEach(p => {
+        if (predict(p.x, p.y).cls === p.c) correct++;
+      });
+      const acc = points.length ? (correct / points.length) : 0;
+      classifyResult = { acc };
+
+      updateStats();
+      drawConfMatrix(acc);
+      document.getElementById('accBadge').textContent = '✓ model fitted';
+      document.getElementById('accBadge').style.color = 'var(--green)';
+      document.getElementById('accBar').style.width = (acc * 100).toFixed(0) + '%';
+      document.getElementById('accVal').textContent = (acc * 100).toFixed(1) + '%';
+      document.getElementById('confSection').style.display = 'block';
+      showToast('Done! Accuracy: ' + (acc * 100).toFixed(1) + '%');
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  CONFUSION MATRIX CANVAS
+    // ══════════════════════════════════════════════════════
+    const accCanvas = document.getElementById('accCanvas');
+    const actx = accCanvas.getContext('2d');
+
+    function drawConfMatrix(acc) {
+      const parent = accCanvas.parentElement;
+      const lw = parent.clientWidth;
+      accCanvas.width = lw * devicePixelRatio;
+      accCanvas.height = 130 * devicePixelRatio;
+      accCanvas.style.width = lw + 'px';
+      accCanvas.style.height = '130px';
+      actx.scale(devicePixelRatio, devicePixelRatio);
+
+      actx.clearRect(0, 0, lw, 130);
+
+      // Build 3x3 confusion matrix
+      const cm = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+      points.forEach(p => {
+        const pred = predict(p.x, p.y).cls;
+        cm[p.c][pred]++;
+      });
+
+      const N = 3;
+      const cellW = 60, cellH = 36;
+      const offX = (lw - N * cellW - 60) / 2 + 60;
+      const offY = 20;
+
+      // Axis labels
+      actx.font = '500 9px JetBrains Mono';
+      actx.fillStyle = 'rgba(203,213,225,0.5)';
+      actx.textAlign = 'center';
+      actx.fillText('Predicted →', offX + N * cellW / 2, 12);
+      actx.save(); actx.translate(offX - 46, offY + N * cellH / 2); actx.rotate(-Math.PI / 2);
+      actx.fillText('Actual ↓', 0, 0); actx.restore();
+
+      for (let a = 0; a < N; a++) {
+        for (let p = 0; p < N; p++) {
+          const v = cm[a][p];
+          const maxV = Math.max(1, ...cm.flat());
+          const intensity = v / maxV;
+          const x = offX + p * cellW;
+          const y = offY + a * cellH;
+
+          // Cell bg
+          if (a === p) {
+            // Diagonal — correct
+            actx.fillStyle = `rgba(34,197,94,${0.1 + intensity * 0.35})`;
+          } else {
+            actx.fillStyle = `rgba(239,68,68,${intensity * 0.3})`;
+          }
+          actx.fillRect(x, y, cellW - 2, cellH - 2);
+          actx.strokeStyle = 'rgba(99,102,241,0.15)';
+          actx.lineWidth = 1;
+          actx.strokeRect(x, y, cellW - 2, cellH - 2);
+
+          // Value
+          actx.fillStyle = a === p ? '#4ADE80' : (v > 0 ? '#F87171' : 'rgba(255,255,255,0.2)');
+          actx.font = `${v > 9 ? 'bold ' : ''}12px JetBrains Mono`;
+          actx.textAlign = 'center';
+          actx.fillText(v, x + cellW / 2 - 1, y + cellH / 2 + 5);
+        }
+        // Row label
+        actx.fillStyle = CLASS_COLORS[a];
+        actx.font = '10px JetBrains Mono';
+        actx.textAlign = 'right';
+        actx.fillText('C' + a, offX - 8, offY + a * cellH + cellH / 2 + 4);
+      }
+
+      // Col labels
+      for (let p = 0; p < N; p++) {
+        actx.fillStyle = CLASS_COLORS[p];
+        actx.font = '10px JetBrains Mono';
+        actx.textAlign = 'center';
+        actx.fillText('C' + p, offX + p * cellW + cellW / 2 - 1, offY + N * cellH + 14);
+      }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  CANVAS INTERACTION
+    // ══════════════════════════════════════════════════════
+    canvas.addEventListener('click', e => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / W;
+      const y = (e.clientY - rect.top) / H;
+      points.push({ x, y, c: activeClass });
+      boundaryGrid = null;
+      classifyResult = null;
+      updateStats();
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      if (!classifyResult) return;
+      const rect = canvas.getBoundingClientRect();
+      const qx = (e.clientX - rect.left) / W;
+      const qy = (e.clientY - rect.top) / H;
+      const { probs } = predict(qx, qy);
+      ['conf0', 'conf1', 'conf2'].forEach((id, i) => {
+        document.getElementById(id).style.width = (probs[i] * 100).toFixed(0) + '%';
+        document.getElementById(id + 'pct').textContent = (probs[i] * 100).toFixed(0) + '%';
+      });
+    });
+
+    // ══════════════════════════════════════════════════════
+    //  STATS
+    // ══════════════════════════════════════════════════════
+    function updateStats() {
+      const cnt = [0, 0, 0];
+      points.forEach(p => cnt[p.c]++);
+      document.getElementById('statN').textContent = points.length;
+      document.getElementById('statC0').textContent = cnt[0];
+      document.getElementById('statC1').textContent = cnt[1];
+      document.getElementById('statC2').textContent = cnt[2];
+      const acc = classifyResult ? classifyResult.acc : null;
+      const accEl = document.getElementById('statAcc');
+      accEl.textContent = acc !== null ? (acc * 100).toFixed(1) + '%' : '—';
+      if (acc !== null) {
+        accEl.className = 'stat-value ' + (acc > 0.9 ? 'good' : acc > 0.7 ? '' : 'warn');
+      }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  CONTROLS
+    // ══════════════════════════════════════════════════════
+    function setClass(c) {
+      activeClass = c;
+      [0, 1, 2].forEach(i => {
+        document.getElementById('cls' + i + 'Btn').classList.toggle('active', i === c);
+      });
+    }
+
+    function setKernel(k) {
+      params.kernel = k;
+      document.getElementById('kernelVal').textContent = k.toUpperCase();
+      ['kLinear', 'kRbf', 'kPoly'].forEach(id => document.getElementById(id).classList.remove('active'));
+      document.getElementById('k' + k.charAt(0).toUpperCase() + k.slice(1)).classList.add('active');
+      boundaryGrid = null; classifyResult = null;
+    }
+
+    function updateParam(key, val) {
+      const map = { k: v => parseInt(v), lr: v => v / 100, iter: v => parseInt(v), c: v => v / 10, depth: v => parseInt(v), leaf: v => parseInt(v), trees: v => parseInt(v), rfdepth: v => parseInt(v) };
+      params[key] = map[key](val);
+      const display = { k: 'kVal', lr: 'lrVal', iter: 'iterVal2', c: 'cVal', depth: 'depthVal', leaf: 'leafVal', trees: 'treesVal', rfdepth: 'rfDepthVal' };
+      const format = { k: v => v, lr: v => v.toFixed(3), iter: v => v, c: v => v.toFixed(1), depth: v => v, leaf: v => v, trees: v => v, rfdepth: v => v };
+      document.getElementById(display[key]).textContent = format[key](params[key]);
+      boundaryGrid = null; classifyResult = null;
+    }
+
+    function clearPoints() {
+      points = []; boundaryGrid = null; classifyResult = null;
+      updateStats(); draw();
+      document.getElementById('accBadge').textContent = '● awaiting classify';
+      document.getElementById('accBadge').style.color = '#F59E0B';
+      document.getElementById('accBar').style.width = '0%';
+      document.getElementById('accVal').textContent = '0%';
+      document.getElementById('confSection').style.display = 'none';
+      actx.clearRect(0, 0, accCanvas.width, accCanvas.height);
+      showToast('Canvas cleared');
+    }
+
+    // Demo data — 3 clusters
+    function seedData() {
+      points = [];
+      const clusters = [
+        { cx: 0.25, cy: 0.3, c: 0 },
+        { cx: 0.72, cy: 0.25, c: 1 },
+        { cx: 0.5, cy: 0.72, c: 2 },
+      ];
+      clusters.forEach(({ cx, cy, c }) => {
+        for (let i = 0; i < 16; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const r = Math.random() * 0.15;
+          points.push({ x: Math.max(.02, Math.min(.98, cx + Math.cos(angle) * r)), y: Math.max(.02, Math.min(.98, cy + Math.sin(angle) * r)), c });
+        }
+      });
+      boundaryGrid = null; classifyResult = null;
+      updateStats();
+      showToast('Demo data loaded — click Classify to run');
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  STAGE SYSTEM
+    // ══════════════════════════════════════════════════════
+    function buildStageList() {
+      const stages = STAGES[algoType];
+      const container = document.getElementById('stageList');
+      container.innerHTML = '';
+      stages.forEach((s, i) => {
+        const div = document.createElement('div');
+        div.className = 'stage-item' + (i === currentStage ? ' active' : '') + (i < currentStage ? ' completed' : '');
+        div.onclick = () => goToStage(i);
+        div.innerHTML = `
+      <div class="stage-dot">${i + 1}</div>
+      <div class="stage-info">
+        <div class="stage-name">${s.name}</div>
+        <div class="stage-sub">${s.sub}</div>
+      </div>
+      <span class="stage-arrow">${i === currentStage ? '›' : ''}</span>
+    `;
+        container.appendChild(div);
+      });
+      document.getElementById('stageProgress').textContent = `${currentStage + 1} / ${stages.length}`;
+      updateInfoCard();
+    }
+
+    function goToStage(i) { currentStage = i; buildStageList(); }
+    function stepStage(dir) {
+      const max = STAGES[algoType].length - 1;
+      currentStage = Math.max(0, Math.min(max, currentStage + dir));
+      buildStageList();
+    }
+
+    function updateInfoCard() {
+      const s = STAGES[algoType][currentStage];
+      document.getElementById('infoTitle').textContent = s.name;
+      document.getElementById('infoDesc').innerHTML = s.info;
+      const eq = document.getElementById('eqBox');
+      if (s.eq) { eq.style.display = 'block'; eq.textContent = s.eq; }
+      else eq.style.display = 'none';
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  ALGORITHM SWITCHING
+    // ══════════════════════════════════════════════════════
+    const ALGO_LABELS = { knn: '⬡ KNN', logistic: '◈ Logistic Reg', svm: '◆ SVM', dtree: '⬢ Decision Tree', rforest: '⊛ Random Forest' };
+    const ALGO_PARAM_IDS = ['knnParams', 'logisticParams', 'svmParams', 'dtreeParams', 'rforestParams'];
+    const ALGO_KEYS = ['knn', 'logistic', 'svm', 'dtree', 'rforest'];
+
+    document.querySelectorAll('.algo-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.algo-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        algoType = btn.dataset.algo;
+        currentStage = 0;
+        boundaryGrid = null; classifyResult = null;
+        logisticWeights = null; svmWeights = null; dtreeModel = null; rfModel = null;
+        updateStats();
+        buildStageList();
+        showParamPanel();
+        document.getElementById('algoPill').textContent = ALGO_LABELS[algoType];
+        document.getElementById('accBadge').textContent = '● awaiting classify';
+        document.getElementById('accBadge').style.color = '#F59E0B';
+        document.getElementById('accBar').style.width = '0%';
+        document.getElementById('accVal').textContent = '0%';
+        document.getElementById('confSection').style.display = 'none';
+        actx.clearRect(0, 0, accCanvas.width, accCanvas.height);
+        showToast('Switched to ' + btn.textContent + ' — click Classify to run');
+      });
+    });
+
+    function showParamPanel() {
+      ALGO_PARAM_IDS.forEach((id, i) => {
+        document.getElementById(id).style.display = ALGO_KEYS[i] === algoType ? '' : 'none';
+      });
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  TOAST
+    // ══════════════════════════════════════════════════════
+    let toastTimer;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  INIT
+    // ══════════════════════════════════════════════════════
+    showParamPanel();
+    buildStageList();
+    resizeCanvas();
+    seedData();
+  </script>
+</body>
+
+</html>
