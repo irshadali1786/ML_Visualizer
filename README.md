@@ -75,3 +75,16 @@ Explore machine learning algorithms through interactive visualizations, animatio
 ```bash
 git clone https://github.com/Irshadali1786/ML_Visualizer.git
 cd ML_Visualizer
+
+## 👨‍💻 Author
+
+Made by Irshad Ali  
+B.Tech CSE (AI & ML) | Web Dev & AI Automation Learner
+
+GitHub: https://github.com/Irshadali1786
+
+---
+
+## 📌 License
+
+MIT License
