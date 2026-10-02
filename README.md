@@ -68,13 +68,6 @@ Explore machine learning algorithms through interactive visualizations, animatio
 
 ---
 
-## 🚀 Getting Started
-
-### Clone the Repository
-
-```bash
-git clone https://github.com/Irshadali1786/ML_Visualizer.git
-cd ML_Visualizer
 
 ## 👨‍💻 Author
 
@@ -88,3 +81,16 @@ GitHub: https://github.com/Irshadali1786
 ## 📌 License
 
 MIT License
+
+---
+
+
+## 🚀 Getting Started
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/Irshadali1786/ML_Visualizer.git
+cd ML_Visualizer
+
+
